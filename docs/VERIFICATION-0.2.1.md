@@ -6,6 +6,8 @@
 
 - ego lite 中完成虚构设备从 A 的主力机交接给 B 的备用机，刷新后读回 B；设备详情保留 A 的 `2026-10-01 → 2026-11-01` 及 B 的持续使用记录。同日零长度交接被拒绝。日期控件的 CLI fill 未触发 React 状态时，改用标准 DOM input/change 事件后完成；没有修改 IndexedDB 来冒充界面操作。
 - ego lite 375×812 纵屏和 812×375 横屏检查，文档宽度分别等于 375/812，无页面横向溢出；截图确认当前用途与历史可读。模拟断网、刷新后 Service Worker 接管，页面仍显示 B 的备用用途。不是 Android/iOS 真机或系统安装验收。
+- 刷新到 0.2.1 后，在 ego lite 完成虚构台账的加密文件导出 → 文件选择器读取 → 5 项资产 / 7 条历史预览 → 备份后确认替换；修订由 7 变为 8，恢复点列表出现原 5 项台账，刷新后 B 的备用用途仍在。导出文件只有 format/salt/iv/ciphertext，没有明文测试资产或口令。
+- 实际路由器候选文件在 ego lite 解析为 57 条，默认每页 20 条 / 3 页、已选 0 项；关键字筛选可定位单条记录，PVE / 随机 MAC 警示保留。仅预览后取消，没有把真实候选混入虚构测试台账；验收 TaskSpace 已关闭。
 - 本机 Clash Verge 2.5.8 已有 AES-256-GCM WebDAV 配置只读解密，PROPFIND 返回 207。应用密码没有输出、进入 Git、回传桌面前端或另存 SSOT 文件；原配置哈希未变化。
 - `scripts/verify-jianguoyun.ts` 用真实应用加密 / 同步函数，对唯一临时目录验证创建、首次 PUT/GET、解密、未知 / 过期指纹拒绝、写前备份、更新回读。错误 If-Match 返回 412；已有文件的 If-None-Match:* 返回 204，仍不支持原子多写者保证。测试文件和目录已清理。
 - Rust `sync::tests::live_native_reused_connection_roundtrip` 显式启用后通过：实际 `dav_request` 后端读取已有加密凭据，临时路径 GET 404 → PUT 201 → GET 200 内容相同，临时文件删除。该测试默认 ignored，不在 CI 访问个人账户。
@@ -25,6 +27,20 @@
 - 没有把网络候选直接批量确认为实体设备，没有给家人编造归属；真实使用关系待用户确认。
 - 新增桌面按钮有 UI 集成测试与真实原生后端测试，但本轮没有用原生桌面 UI 工具点击验收；Windows 本机已有 Clash Verge 的路径 / 凭据复用尚无实体机器验证。
 - 无 APK / IPA、无手机真机安装、无私有 HTTPS Web 托管、无后台自动并发同步。签名 / 公证边界沿用预览版。
+
+## 私有发布回读
+
+- Release：<https://github.com/melotusme/ssot-hub/releases/tag/v0.2.1-preview.1>，已发布的 prerelease，非 draft，不设置 latest。
+- 三个平台固定源码 `d7ecd7617bd86bb221c133aa4dad5e8b53f95f19`；tag 指向同一提交。CI <https://github.com/melotusme/ssot-hub/actions/runs/41312345373> 的 Web、macOS ARM64、Windows x64 均成功。
+- 从 Actions 下载后检查包内容、版本和架构，再上传草稿并发布；随后重新下载 Release 的三个包和 SHA256SUMS，逐个 SHA-256 验证通过，清单与上传前一致。
+- macOS 可执行文件为 Mach-O ARM64，Info.plist 版本 0.2.1，`codesign --verify --deep --strict` 通过，仍仅 ad-hoc 签名。Windows 是含 0.2.1 版本资源的 NSIS 安装器；安装器 stub 为 32 位，CI 对内部应用 PE machine 的 `0x8664` 检查通过。Web 包的 Service Worker 缓存版本为 0.2.1。
+- 本轮没有替换用户已安装的应用；安装 / 升级命令见 [INSTALL.md](INSTALL.md)。本机验收预览服务及 ego lite TaskSpace 已停止，私有观测文件和恢复点保留。
+
+| 发布资产 | SHA-256 |
+| --- | --- |
+| SSOT.Hub.macos.arm64.tar.gz | a8503cc49d5eee1903dc44f47dc041a5954ce70acd47d062a1a2d97aab29a14c |
+| SSOT.Hub.windows.x64.exe | e228a5a57dcd0f0934f2964d96769faecc2ebd7ca1a982547ba63d74e2eadd3d |
+| SSOT.Hub.web.zip | 68e02fe8e47f9b0ca229a3e55a5cfb381b22ed2f1915bc6d6c8e07404609cb3b |
 
 ## 复现入口
 
