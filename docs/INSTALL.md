@@ -1,6 +1,6 @@
-# 0.2.0 预览版安装
+# 0.2.1 预览版安装
 
-私有仓库：<https://github.com/melotusme/ssot-hub>。使用有权访问该仓库的 GitHub CLI 会话下载，不需要把 Token 写进应用。发行记录：<https://github.com/melotusme/ssot-hub/releases/tag/v0.2.0-preview.1>。
+私有仓库：<https://github.com/melotusme/ssot-hub>。使用有权访问该仓库的 GitHub CLI 会话下载，不需要把 Token 写进应用。发行记录：<https://github.com/melotusme/ssot-hub/releases/tag/v0.2.1-preview.1>。
 
 这是桌面 / Web 预览版，不是五平台正式版。升级前在旧版「数据与备份」保存备份；v2 写入后不要用旧版修改数据。没有应用内自动更新。
 
@@ -9,10 +9,10 @@
 `SSOT.Hub.macos.arm64.tar.gz` 包含 `.app`，不支持 Intel 原生运行。仅 ad-hoc 签名，未 Apple 公证；首次打开可能被 Gatekeeper 拦截。核对校验值和来源后，按 macOS「隐私与安全性」的单应用提示处理，不关闭全局安全保护。
 
 ```sh
-gh release download v0.2.0-preview.1 --repo melotusme/ssot-hub \
+gh release download v0.2.1-preview.1 --repo melotusme/ssot-hub \
   --pattern SSOT.Hub.macos.arm64.tar.gz --pattern SHA256SUMS \
-  --dir ssot-hub-0.2.0-mac
-cd ssot-hub-0.2.0-mac
+  --dir ssot-hub-0.2.1-mac
+cd ssot-hub-0.2.1-mac
 grep '  SSOT.Hub.macos.arm64.tar.gz$' SHA256SUMS | shasum -a 256 -c -
 tar -xzf SSOT.Hub.macos.arm64.tar.gz
 codesign --verify --deep --strict 'SSOT Hub.app'
@@ -27,7 +27,7 @@ codesign --verify --deep --strict 'SSOT Hub.app'
 ```powershell
 $ssotDir = Join-Path $env:TEMP ('ssot-hub-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $ssotDir | Out-Null
-gh release download v0.2.0-preview.1 --repo melotusme/ssot-hub --pattern SSOT.Hub.windows.x64.exe --pattern SHA256SUMS --dir $ssotDir
+gh release download v0.2.1-preview.1 --repo melotusme/ssot-hub --pattern SSOT.Hub.windows.x64.exe --pattern SHA256SUMS --dir $ssotDir
 if ($LASTEXITCODE -ne 0) { throw '下载失败' }
 $lines = @(Get-Content (Join-Path $ssotDir 'SHA256SUMS') | Where-Object { $_ -match '^([0-9a-f]{64})  SSOT\.Hub\.windows\.x64\.exe$' })
 if ($lines.Count -ne 1) { throw '缺少唯一校验值' }
@@ -49,4 +49,8 @@ Android / iOS 目前走响应式 Web/PWA，可在站点开放后添加到主屏�
 
 「数据与备份」→ 设置至少 12 字符加密口令 → 加密导出 / 导入，或填写 WebDAV HTTPS 目录和应用密码。先下载预览再确认替换；本机替换前保存恢复点。WebDAV 的 URL / 用户名留本机，密码与加密口令只保留在当前运行内存。
 
-当前仅手动串行交接，不自动合并多人同时修改。Web 端需要服务商允许 CORS；如不支持，可用桌面端或加密文件交接。真实云端尚未连接或验收。
+桌面可点击「复用本机 Clash Verge WebDAV」，只读取该客户端已有的 AES-GCM 加密连接。密码不返回页面，不复制到 SSOT 配置，不修改原客户端。每次请求限制在原账号、原 HTTPS 站点的 `SSOT-Hub/` 目录。连接来源标记留在本机，不同步给其他设备；没有 Clash Verge 的设备可手动填应用密码。
+
+坚果云已使用独立临时文件完成真实加密读写、冲突、备份、回读与清理；正式 `vault.json` 没有初始化。首次正式上传还需要你在应用中设置独立的至少 12 字符同步口令，请不要使用路由器弱密码。
+
+当前仅手动串行交接，不自动合并多人同时修改。坚果云实测不严格执行首次创建条件 `If-None-Match: *`，因此仍不可多端同时上传。当前服务不允许浏览器 CORS 直连，Web/PWA 请通过坚果云客户端传递加密文件，或使用桌面端同步；不能称为手机端已自动直连云端。

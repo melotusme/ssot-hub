@@ -59,15 +59,24 @@ export function networkCandidates(text: string): Candidate[] {
       /* Keep source label if it is not percent-encoded. */
     }
     if (name.length > 200) throw Error("设备名称过长");
-    const virtual = /\bVM\s*\d+|虚拟机/i.test(name);
+    const virtual =
+      /\bVM\s*\d+|虚拟机/i.test(name) || mac.startsWith("bc:24:11:");
+    const comment = String(r.comment || "");
+    if (comment.length > 2000) throw Error("设备观测备注过长");
     found.set(mac, {
       mac,
       ip,
       name,
       suggestedKind: virtual ? "environment" : "device",
-      warning: virtual
-        ? "疑似虚拟机，需核对宿主"
-        : "仅网络观测，型号 / 使用人未确认",
+      warning: [
+        virtual ? "疑似虚拟机，需核对宿主" : "仅网络观测，型号 / 使用人未确认",
+        parseInt(mac.slice(0, 2), 16) & 2
+          ? "本地管理 MAC，可能为随机地址或虚拟接口"
+          : "",
+        comment !== name ? comment : "",
+      ]
+        .filter(Boolean)
+        .join("；"),
     });
   }
   return [...found.values()];

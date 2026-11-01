@@ -853,7 +853,7 @@ export default function App() {
           </button>
           <div className="local-indicator">
             <span />
-            本地优先 <small>v0.2.0</small>
+            本地优先 <small>v0.2.1</small>
           </div>
         </div>
       </aside>

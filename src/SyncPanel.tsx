@@ -51,6 +51,7 @@ export default function SyncPanel({
             body: body ?? null,
             username: config.username,
             password: config.password,
+            useVerge: config.source === "clash-verge",
             condition: condition ? [condition.name, condition.value] : null,
           })
       : browserTransport(config);
@@ -78,8 +79,34 @@ export default function SyncPanel({
   const rememberConnection = () =>
     localStorage.setItem(
       "ssot.dav",
-      JSON.stringify({ url: config.url, username: config.username }),
+      JSON.stringify({
+        url: config.url,
+        username: config.username,
+        ...(desktop && config.source ? { source: config.source } : {}),
+      }),
     );
+  const reuseVerge = () =>
+    run(async () => {
+      const profile = await command<{ url: string; username: string }>(
+        "verge_dav_profile",
+      );
+      const next: DavConfig = {
+        ...profile,
+        password: "",
+        source: "clash-verge",
+      };
+      setConfig(next);
+      setPreview(null);
+      localStorage.setItem(
+        "ssot.dav",
+        JSON.stringify({ ...profile, source: "clash-verge" }),
+      );
+      setMessage(
+        "已复用本机连接。应用密码留在后端读取，不复制或修改 Clash Verge 配置；尚未上传台账。",
+      );
+    });
+  const hasCredential =
+    !!config.password || (desktop && config.source === "clash-verge");
   const exportEncrypted = () =>
     run(async () => {
       const content = await encryptPayload(payload(), passphrase);
@@ -197,6 +224,22 @@ export default function SyncPanel({
           使用第三方应用密码。只保存 URL 与用户名；密码关闭页面即丢弃。Web
           需要服务器允许 CORS；桌面没有浏览器 CORS 限制。
         </p>
+        {desktop && (
+          <button disabled={busy} onClick={reuseVerge}>
+            复用本机 Clash Verge WebDAV
+          </button>
+        )}
+        {desktop && config.source === "clash-verge" && (
+          <p role="status">
+            正在复用本机加密连接；密码不返回页面。修改地址、账号或密码将切回手动连接。
+          </p>
+        )}
+        {!desktop && config.url?.includes("dav.jianguoyun.com") && (
+          <p className="small">
+            坚果云当前不允许浏览器跨域直连。请用桌面端同步，或通过坚果云客户端传递加密快照文件；本页面不会绕过
+            CORS。
+          </p>
+        )}
         <label>
           WebDAV 根目录
           <input
@@ -204,7 +247,7 @@ export default function SyncPanel({
             placeholder="https://dav.example.com/dav/"
             value={config.url || ""}
             onChange={(e) => {
-              setConfig({ ...config, url: e.target.value });
+              setConfig({ ...config, url: e.target.value, source: undefined });
               setPreview(null);
             }}
           />
@@ -215,7 +258,11 @@ export default function SyncPanel({
             autoComplete="username"
             value={config.username || ""}
             onChange={(e) => {
-              setConfig({ ...config, username: e.target.value });
+              setConfig({
+                ...config,
+                username: e.target.value,
+                source: undefined,
+              });
               setPreview(null);
             }}
           />
@@ -226,22 +273,24 @@ export default function SyncPanel({
             type="password"
             autoComplete="off"
             value={config.password}
-            onChange={(e) => setConfig({ ...config, password: e.target.value })}
+            onChange={(e) =>
+              setConfig({
+                ...config,
+                password: e.target.value,
+                source: undefined,
+              })
+            }
           />
         </label>
         <div className="head-actions">
           <button
-            disabled={
-              busy || !config.url || !config.username || !config.password
-            }
+            disabled={busy || !config.url || !config.username || !hasCredential}
             onClick={download}
           >
             检查连接 / 下载预览
           </button>
           <button
-            disabled={
-              busy || !config.url || !config.username || !config.password
-            }
+            disabled={busy || !config.url || !config.username || !hasCredential}
             onClick={upload}
           >
             加密上传并校验

@@ -127,6 +127,7 @@ export interface DavConfig {
   url: string;
   username: string;
   password: string;
+  source?: "clash-verge";
 }
 export interface DavResponse {
   status: number;

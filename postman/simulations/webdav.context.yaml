@@ -3,13 +3,31 @@ purpose:
   unblocks: Local encrypted sync conflict and failure verification without personal credentials
 assumptions:
   - id: provider-atomic-etags
-    status: unknown
+    status: contradicted
     claim: A selected real WebDAV provider honors If-Match and If-None-Match atomically.
-    reason: No real provider has been selected or authenticated. The local mock honors these headers; production does not rely solely on them.
+    reason: The user selected an existing Jianguoyun connection. A 2026-11-01 isolated live probe rejected a wrong If-Match with 412 but accepted If-None-Match:* against an existing file with 204. The mock is stricter for first creation; the application does not rely solely on conditional headers and cannot guarantee atomic concurrent writers.
     verification: On 2026-11-01 CLI 1.74.0 ran scripts/verify-sync.ts against this simulation. Actual browserTransport HTTP calls performed MKCOL 201, GET 404, initial PUT 201, GET 200, backup PUT 201, update PUT 204, GET 200, and injected GET 503. Unknown and stale hashes were rejected by the caller before overwriting. Encrypted data decrypted successfully. Provider ETag behavior remains unverified; no provider account or production data was used.
     source: docs/SYNC-CONTRACT.md; src/sync.ts; postman/mocks/webdav/default.js
     updated_at: "2026-11-01"
+  - id: jianguoyun-live-serial-handoff
+    status: supported
+    claim: Encrypted serial handoff, application hash conflicts, backup-before-update and readback succeed against the selected Jianguoyun account in the isolated cases tested.
+    reason: Real application sync and crypto code ran against a UUID-isolated directory with synthetic empty snapshots. Unknown and stale hashes were rejected; backup and readback succeeded. This does not initialize the production vault or prove concurrent-write safety.
+    verification: scripts/verify-jianguoyun.ts completed MKCOL, GET 404, PUT 201, GET 200 and decrypt, unknown-version rejection, backup PUT 201, update PUT 204, GET 200, stale-version rejection, and explicit provider condition probes. All created files and the test directory were deleted. Existing encrypted source config hash was unchanged. The ignored native Rust test separately exercised actual dav_request with backend-only reused credentials, GET 404, PUT 201, GET 200 exact body, and deletion of its own UUID file.
+    source: scripts/verify-jianguoyun.ts; src-tauri/src/sync.rs::live_native_reused_connection_roundtrip; docs/SYNC-CONTRACT.md
+    updated_at: "2026-11-01"
+  - id: jianguoyun-browser-cors
+    status: contradicted
+    claim: A localhost Web/PWA frontend can directly use the selected Jianguoyun WebDAV endpoint with Authorization headers.
+    reason: The preflight response did not grant CORS. Use native desktop HTTP or encrypted-file handoff; do not bypass browser security.
+    verification: OPTIONS with Origin http://localhost:1420 and requested authorization returned 401 with no Access-Control-Allow-Origin. Authenticated native PROPFIND returned 207; native live read/write succeeded separately.
+    source: docs/SYNC-CONTRACT.md; src/SyncPanel.tsx
+    updated_at: "2026-11-01"
 fingerprints:
+  - id: live-jianguoyun-followup
+    date: "2026-11-01"
+    commit: 07744e8 plus uncommitted 0.2.1 followup
+    cli: "1.74.0"
   - id: initial-assets-worktree
     date: "2026-11-01"
     commit: uncommitted initial worktree

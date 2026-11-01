@@ -37,3 +37,20 @@ it("dnsmasq 清单与无效地址边界", () => {
     networkCandidates('[{"mac":"02:00:00:00:00:01","ip":"999.1.1.1"}]'),
   ).toThrow(/IPv4/);
 });
+it("PVE 前缀仅作候选提示，随机 MAC 与来源备注保留", () => {
+  const candidates = networkCandidates(
+    JSON.stringify([
+      {
+        mac: "bc:24:11:00:00:01",
+        ip: "192.168.1.2",
+        name: "待确认",
+        comment: "静态绑定；本次未观测",
+      },
+      { mac: "02:00:00:00:00:02", ip: "192.168.1.3", name: "phone" },
+    ]),
+  );
+  expect(candidates[0].suggestedKind).toBe("environment");
+  expect(candidates[0].warning).toContain("本次未观测");
+  expect(candidates[1].suggestedKind).toBe("device");
+  expect(candidates[1].warning).toContain("随机地址");
+});

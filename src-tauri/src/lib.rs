@@ -1,3 +1,4 @@
+mod dav_connection;
 mod importers;
 mod shortcuts;
 mod store;
@@ -340,6 +341,7 @@ pub fn run() {
             write_encrypted,
             read_encrypted,
             sync::dav_request,
+            dav_connection::verge_dav_profile,
             new_workspace,
             data_path,
             preview_brew,
