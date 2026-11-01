@@ -414,10 +414,10 @@ pub fn validate(s: &Snapshot) -> Result<()> {
             }
             if let (Some(start), Some(end)) =
                 (a.fields.get("starts_on"), a.fields.get("expires_on"))
+                && !end.is_empty()
+                && end < start
             {
-                if !end.is_empty() && end < start {
-                    return Err("课程到期不能早于开始".into());
-                }
+                return Err("课程到期不能早于开始".into());
             }
         }
         if a.kind == "assignment" {

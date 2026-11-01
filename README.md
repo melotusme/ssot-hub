@@ -26,6 +26,8 @@ Windows / macOS 有 Tauri 构建流水线；Web 构建产物为 `dist/`。Androi
 
 ## 开发与构建
 
+私有源码：[melotusme/ssot-hub](https://github.com/melotusme/ssot-hub)。预览版的下载、校验、安装和平台边界见 [安装说明](docs/INSTALL.md)。发布仅包含代码和空台账，不包含本机设备、账号或数据库。
+
 需要 Node.js 22.12+（或 Bun）、Rust stable、系统 Tauri 开发依赖。macOS 需要 Command Line Tools。
 
 ```sh
