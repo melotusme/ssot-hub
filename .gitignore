@@ -1,0 +1,17 @@
+node_modules/
+node_modules.pre-*/
+dist/
+src-tauri/target/
+.DS_Store
+*.log
+*.sqlite3*
+backups/
+.serena/
+.vscode/
+.env*
+!.env.example
+private/
+*.tgz
+src-tauri/gen/
+src-tauri/.cargo/
+*.tsbuildinfo

@@ -1,0 +1,16 @@
+purpose:
+  stands_in_for: A generic WebDAV service implementing GET PUT MKCOL and ETags
+  unblocks: Local encrypted sync conflict and failure verification without personal credentials
+assumptions:
+  - id: provider-atomic-etags
+    status: unknown
+    claim: A selected real WebDAV provider honors If-Match and If-None-Match atomically.
+    reason: No real provider has been selected or authenticated. The local mock honors these headers; production does not rely solely on them.
+    verification: On 2026-11-01 CLI 1.74.0 ran scripts/verify-sync.ts against this simulation. Actual browserTransport HTTP calls performed MKCOL 201, GET 404, initial PUT 201, GET 200, backup PUT 201, update PUT 204, GET 200, and injected GET 503. Unknown and stale hashes were rejected by the caller before overwriting. Encrypted data decrypted successfully. Provider ETag behavior remains unverified; no provider account or production data was used.
+    source: docs/SYNC-CONTRACT.md; src/sync.ts; postman/mocks/webdav/default.js
+    updated_at: "2026-11-01"
+fingerprints:
+  - id: initial-assets-worktree
+    date: "2026-11-01"
+    commit: uncommitted initial worktree
+    cli: "1.74.0"

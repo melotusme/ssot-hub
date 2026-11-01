@@ -1,0 +1,8 @@
+simulation: ssot-webdav
+routing: path
+mocks:
+  - name: webdav
+    routeKey: webdav
+    origin:
+      - dav.example.invalid
+    path: postman/mocks/webdav/config.yaml

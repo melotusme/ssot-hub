@@ -1,0 +1,12 @@
+version: 1
+name: ssot-webdav
+slug: ssot-webdav
+protocol: http
+port: 4020
+description: Local WebDAV contract stand-in; not evidence of a provider's ETag guarantees
+origin: dav.example.invalid
+interceptRequests: true
+scenarios:
+  - name: default
+    path: ./default.js
+    default: true
