@@ -11,6 +11,7 @@
 - ego-browser 真实浏览器：登记虚构家庭笔记本，刷新读回，证实 Web IndexedDB 持久化，不是内存演示。
 - Rust Clippy 全目标 `-D warnings` 通过。本地 macOS ARM64 `.app` 构建、ad-hoc 签名和严格验签通过，未覆盖已安装旧版；这不是 Apple Developer ID 签名或公证。
 - 私有仓库 `melotusme/ssot-hub` 已创建并核实 `isPrivate: true`。最终 [Actions 41306210407](https://github.com/melotusme/ssot-hub/actions/runs/41306210407) 的 Web、macOS ARM64、Windows x64 测试与打包全部成功，三个包均来自源码 `5f23aee66b4c46e7f794870aadcbbdc8d6dea8ec`。CI 检查 Mach-O ARM64、Windows 应用 PE x64 和 macOS ad-hoc 签名，先压缩 `.app` 再上传以保留权限。
+- [v0.2.0-preview.1](https://github.com/melotusme/ssot-hub/releases/tag/v0.2.0-preview.1) 已发布为私有仓库预览版（非 draft、非完整五平台正式版）。标签指向上述完整 SHA；正式 Release 的三个包及 `SHA256SUMS` 已重新下载，全部校验通过。macOS 包版本为 0.2.0、ARM64，下载解包后严格验签通过；未替换本机已安装应用。
 - 本地 macOS 包已启动和退出；事前保存完整应用数据备份，事后数据库与工作空间指针 SHA-256 均未变化。桌面控制工具报 `Sky Computer Use native pipe startup failed`，因此没有把进程启动当作窗口操作成功。
 - 源码发布前扫描常见密钥格式未命中；排除 SQLite、真实清单、.serena、环境文件和依赖缓存。样例仅测试资料。
 
