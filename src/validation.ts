@@ -4,7 +4,7 @@ export function validateSnapshot(value: unknown): asserts value is Snapshot {
   if (!value || typeof value !== "object") throw Error("快照不是对象");
   const s = value as Snapshot;
   if (
-    ![1, 2].includes(s.version) ||
+    ![1, 2, 3].includes(s.version) ||
     !Number.isSafeInteger(s.revision) ||
     s.revision < 0 ||
     !Array.isArray(s.assets) ||
@@ -69,7 +69,7 @@ export function validateSnapshot(value: unknown): asserts value is Snapshot {
       if (["currency", "base_currency"].includes(key) && !/^[A-Z]{3}$/.test(v))
         throw Error("币种应为三位大写代码");
       if (
-        ["repository", "authority_ref", "endpoint", "backup_ref"].includes(
+        ["repository", "authority_ref", "endpoint", "backup_ref", "path"].includes(
           key,
         ) &&
         (/\w+:\/\/[^/]*@/.test(v) || /(?:token|password|key|secret)=/i.test(v))
@@ -82,6 +82,15 @@ export function validateSnapshot(value: unknown): asserts value is Snapshot {
         !a.fields[f.key]
       )
         throw Error(`请填写${f.label}`);
+    if (a.kind === "connection" && a.fields.probe_state && a.fields.probe_state !== "untested" &&
+        (!a.fields.probe_at || Number.isNaN(Date.parse(a.fields.probe_at))))
+      throw Error("标记连通性必须填写有效测试时间，配置存在不等于连通");
+    if (a.kind === "connection" && a.fields.software_id) {
+      const installation = s.assets.find(x=>x.id===a.fields.software_id);
+      const env = s.assets.find(x=>x.id===installation?.fields.environment_id);
+      if (a.fields.node_id !== env?.id && a.fields.node_id !== env?.fields.device_id)
+        throw Error("网络节点与软件安装环境不一致；不能混淆宿主和客户机");
+    }
     if (a.kind === "course") {
       const total = a.fields.lessons_total || "0",
         used = a.fields.lessons_used || "0";

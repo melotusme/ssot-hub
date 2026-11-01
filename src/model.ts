@@ -13,7 +13,11 @@ export type Kind =
   | "server"
   | "agent"
   | "course"
-  | "assignment";
+  | "assignment"
+  | "resource"
+  | "copy"
+  | "network"
+  | "connection";
 export interface Asset {
   id: string;
   kind: Kind;
@@ -71,6 +75,10 @@ export const kinds: Kind[] = [
   "agent",
   "course",
   "assignment",
+  "resource",
+  "copy",
+  "network",
+  "connection",
 ];
 export const names: Record<Kind, string> = {
   device: "设备",
@@ -88,6 +96,10 @@ export const names: Record<Kind, string> = {
   agent: "个人 Agent",
   course: "孩子的班课",
   assignment: "使用与交接",
+  resource: "资源目录",
+  copy: "资源副本与位置",
+  network: "网络与穿透",
+  connection: "节点接入",
 };
 const f = (key: string, label: string, extra: Partial<Field> = {}): Field => ({
   key,
@@ -111,6 +123,9 @@ export const fields: Record<Kind, Field[]> = {
         ["projector", "投影设备 / 投影手机"],
         ["router", "路由器 / 网络设备"],
         ["enclosure", "硬盘盒"],
+        ["nas", "实体 NAS"],
+        ["console", "游戏主机"],
+        ["cartridge", "游戏卡 / 米格卡"],
         ["other", "其他"],
       ],
     }),
@@ -126,6 +141,9 @@ export const fields: Record<Kind, Field[]> = {
     f("purchased_on", "购买日期", { type: "date" }),
   ],
   environment: [
+    f("environment_kind", "环境类型", { options: [["physical", "实体机系统"], ["vm", "虚拟机"], ["container", "容器"]] }),
+    f("vmid", "虚拟机 / 容器编号"),
+    f("runtime_state", "观测运行状态", { options: [["running", "运行中"], ["stopped", "已停止"], ["unknown", "未核实"]] }),
     f("os", "操作系统"),
     f("version", "系统版本"),
     f("device_id", "所在设备", { ref: "device" }),
@@ -158,6 +176,8 @@ export const fields: Record<Kind, Field[]> = {
     f("subscription_id", "订阅 / 许可", { ref: "subscription" }),
     f("config_id", "配置来源", { ref: "config" }),
     f("license_ref", "许可证保险库引用"),
+    f("enabled_state", "启用 / 自启配置", { options: [["enabled", "开启"], ["disabled", "关闭"], ["unknown", "未核实"]] }),
+    f("runtime_state", "观测运行状态", { options: [["running", "运行中"], ["stopped", "已停止"], ["unknown", "未核实"]] }),
   ],
   config: [
     f("authority", "权威类型", {
@@ -209,6 +229,7 @@ export const fields: Record<Kind, Field[]> = {
         ["ai", "AI / Claude / Grok"],
         ["proxy", "科学上网"],
         ["hosting", "服务器"],
+        ["cloud_storage", "网盘 / 云存储"],
         ["other", "其他"],
       ],
     }),
@@ -333,7 +354,50 @@ export const fields: Record<Kind, Field[]> = {
     f("ends_on", "结束日期（不含当日，空为持续使用）", { type: "date" }),
     f("location", "使用地点"),
   ],
+  resource: [
+    f("resource_kind", "资源类别", {options:[["game", "游戏 / 游戏集合"], ["media", "影音"], ["archive", "安装包 / 镜像"], ["document", "文档"], ["other", "其他"]]}),
+    f("platform", "适用平台"),
+    f("distribution", "使用方式 / 格式", {options:[["mig", "米格卡资源"], ["atmosphere", "大气层安装资源"], ["standard", "常规文件"], ["other", "其他"]]}),
+    f("version", "版本 / 批次"),
+  ],
+  copy: [
+    f("resource_id", "对应资源 *", {ref:"resource", required:true}),
+    f("holder_id", "存放载体 / NAS / 网盘账号 *", {ref:["storage", "device", "account"], required:true}),
+    f("path", "目录 / 卷 / 云端位置（不含凭据）"),
+    f("copy_role", "副本用途", {options:[["source", "来源文件"], ["backup", "备份副本"], ["installed", "已安装内容"], ["archive", "归档"]]}),
+    f("environment_id", "使用 / 安装环境", {ref:"environment"}),
+    f("content_state", "内容核实状态", {options:[["present", "已核实存在"], ["missing", "已核实缺失"], ["unknown", "尚未核实"]]}),
+    f("checksum", "校验值（可空）"),
+  ],
+  network: [
+    f("technology", "网络技术", {options:[["zerotier", "ZeroTier"], ["tailscale", "Tailscale"], ["frp", "FRP"], ["cloudflare", "Cloudflare Tunnel"], ["lan", "局域网"], ["other", "其他"]]}),
+    f("network_code", "网络标识（非密钥）"),
+    f("network_range", "网段"),
+    f("account_id", "管理账号", {ref:"account"}),
+    f("config_id", "配置来源", {ref:"config"}),
+    f("subscription_id", "相关订阅", {ref:"subscription"}),
+  ],
+  connection: [
+    f("network_id", "所属网络 *", {ref:"network", required:true}),
+    f("node_id", "实际接入节点 *", {ref:["device", "environment"], required:true}),
+    f("software_id", "使用的软件安装", {ref:"software"}),
+    f("enabled_state", "启用配置", {options:[["enabled", "开启"], ["disabled", "关闭"], ["unknown", "未核实"]]}),
+    f("node_address", "节点地址 / 虚拟 IP"),
+    f("advertised_routes", "发布路由 / 内网网段"),
+    f("endpoint", "访问入口（不含密钥）"),
+    f("probe_state", "实际连通性", {options:[["reachable", "已测试可达"], ["unreachable", "已测试不可达"], ["untested", "未测试"]]}),
+    f("probe_at", "连通性测试时间（ISO 8601）"),
+  ],
 };
+export const verificationNames: Record<string, string> = {observed:"机器观测", reported:"用户描述", confirmed:"人工确认", unknown:"待核对"};
+for (const kind of kinds) {
+  for (const item of [
+    f("verification", "资料依据", {options:Object.entries(verificationNames)}),
+    f("evidence", "证据 / 登记来源"),
+    f("observed_at", "资料观测时间（ISO 8601）"),
+    f("review_note", "待确认 / 盘点缺口", {type:"textarea"}),
+  ]) if (!fields[kind].some(existing=>existing.key===item.key)) fields[kind].push(item);
+}
 export const matchesRef = (kind: Kind, ref: Field["ref"]) =>
   Array.isArray(ref) ? ref.includes(kind) : ref === kind;
 export function today() {
@@ -361,7 +425,7 @@ export function usageLabel(a: Asset, s: Snapshot) {
   );
 }
 export const empty: Snapshot = {
-  version: 2,
+  version: 3,
   revision: 0,
   assets: [],
   links: [],
@@ -395,7 +459,7 @@ export function dueDays(date?: string): number | null {
 }
 export function primary(a: Asset, s: Snapshot): string {
   const x = a.fields;
-  const ref = x.environment_id || x.account_id || x.device_id;
+  const ref = x.holder_id || x.node_id || x.environment_id || x.host_id || x.account_id || x.device_id;
   return (
     s.assets.find((t) => t.id === ref)?.name ||
     x.provider ||

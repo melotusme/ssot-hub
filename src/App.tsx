@@ -10,8 +10,11 @@ import {
   Clock3,
   Database,
   Download,
+  Cable,
   FileCode2,
+  Files,
   FolderGit2,
+  Library,
   Globe2,
   HardDrive,
   LayoutDashboard,
@@ -27,6 +30,7 @@ import {
   Sparkles,
   Trash2,
   UserRound,
+  Waypoints,
   X,
 } from "lucide-react";
 import { command, chooseFile, chooseExport, desktop } from "./api";
@@ -77,6 +81,10 @@ const icons = {
   agent: Sparkles,
   course: FileCode2,
   assignment: RefreshCw,
+  resource: Library,
+  copy: Files,
+  network: Waypoints,
+  connection: Cable,
 };
 type View = "overview" | Kind | "history" | "settings" | "shortcuts";
 type Modal =
@@ -853,7 +861,7 @@ export default function App() {
           </button>
           <div className="local-indicator">
             <span />
-            本地优先 <small>v0.2.1</small>
+            本地优先 <small>v0.2.2</small>
           </div>
         </div>
       </aside>

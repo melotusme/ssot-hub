@@ -1,4 +1,4 @@
-const CACHE = "ssot-shell-v0.2.1";
+const CACHE = "ssot-shell-v0.2.2";
 self.addEventListener("install", (event) =>
   event.waitUntil(
     (async () => {

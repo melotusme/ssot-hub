@@ -25,7 +25,7 @@ const remote = await readRemote(dir, transport);
 assert(remote?.hash === hash, "roundtrip hash mismatch");
 assert(
   (await decryptPayload(remote!.body, "local-test-password-2026")).snapshot
-    .version === 2,
+    .version === 3,
   "decrypt mismatch",
 );
 let rejected = false;

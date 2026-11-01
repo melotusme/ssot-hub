@@ -25,6 +25,10 @@ const KINDS: &[&str] = &[
     "agent",
     "course",
     "assignment",
+    "resource",
+    "copy",
+    "network",
+    "connection",
 ];
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -107,7 +111,7 @@ pub fn open(path: &Path) -> Result<Connection> {
     )
     .map_err(error)?;
     let empty = Snapshot {
-        version: 2,
+        version: 3,
         revision: 0,
         assets: vec![],
         links: vec![],
@@ -126,7 +130,7 @@ pub fn read(c: &Connection) -> Result<Snapshot> {
         .map_err(error)?;
     let mut snapshot: Snapshot = serde_json::from_str(&s).map_err(error)?;
     validate(&snapshot)?;
-    snapshot.version = 2;
+    snapshot.version = 3;
     Ok(snapshot)
 }
 fn check_revision(s: &Snapshot, revision: u64) -> Result<()> {
@@ -154,7 +158,16 @@ fn persist(c: &Connection, s: &mut Snapshot) -> Result<()> {
     Ok(())
 }
 fn allowed(kind: &str) -> Vec<&str> {
-    let mut keys = vec!["notes", "purpose", "secret_ref", "expires_on"];
+    let mut keys = vec![
+        "notes",
+        "purpose",
+        "secret_ref",
+        "expires_on",
+        "verification",
+        "evidence",
+        "observed_at",
+        "review_note",
+    ];
     keys.extend(match kind {
         "device" => vec![
             "platform",
@@ -170,6 +183,9 @@ fn allowed(kind: &str) -> Vec<&str> {
             "purchased_on",
         ],
         "environment" => vec![
+            "environment_kind",
+            "vmid",
+            "runtime_state",
             "os",
             "version",
             "device_id",
@@ -195,6 +211,8 @@ fn allowed(kind: &str) -> Vec<&str> {
             "subscription_id",
             "config_id",
             "license_ref",
+            "enabled_state",
+            "runtime_state",
         ],
         "config" => vec!["authority", "authority_ref", "forbidden_sync"],
         "account" => vec!["provider", "login_hint", "email", "tags", "owner_id"],
@@ -284,6 +302,35 @@ fn allowed(kind: &str) -> Vec<&str> {
             "ends_on",
             "location",
         ],
+        "resource" => vec!["resource_kind", "platform", "distribution", "version"],
+        "copy" => vec![
+            "resource_id",
+            "holder_id",
+            "path",
+            "copy_role",
+            "environment_id",
+            "content_state",
+            "checksum",
+        ],
+        "network" => vec![
+            "technology",
+            "network_code",
+            "network_range",
+            "account_id",
+            "config_id",
+            "subscription_id",
+        ],
+        "connection" => vec![
+            "network_id",
+            "node_id",
+            "software_id",
+            "enabled_state",
+            "node_address",
+            "advertised_routes",
+            "endpoint",
+            "probe_state",
+            "probe_at",
+        ],
         _ => vec![],
     });
     keys
@@ -300,11 +347,16 @@ fn ref_kind(key: &str) -> Option<&'static str> {
         "storage_id" => Some("storage"),
         "server_id" => Some("server"),
         "asset_id" => Some("assignable"),
+        "holder_id" => Some("holder"),
+        "node_id" => Some("node"),
+        "resource_id" => Some("resource"),
+        "network_id" => Some("network"),
+        "software_id" => Some("software"),
         _ => None,
     }
 }
 pub fn validate(s: &Snapshot) -> Result<()> {
-    if ![1, 2].contains(&s.version) {
+    if ![1, 2, 3].contains(&s.version) {
         return Err("不支持的快照版本".into());
     }
     let mut ids = HashSet::new();
@@ -355,7 +407,11 @@ pub fn validate(s: &Snapshot) -> Result<()> {
                         t.id == *v
                             && (t.kind == kind
                                 || kind == "assignable"
-                                    && ["device", "storage", "server"].contains(&t.kind.as_str()))
+                                    && ["device", "storage", "server"].contains(&t.kind.as_str())
+                                || k == "holder_id"
+                                    && ["storage", "device", "account"].contains(&t.kind.as_str())
+                                || k == "node_id"
+                                    && ["device", "environment"].contains(&t.kind.as_str()))
                     }))
             {
                 return Err(format!("{k} 引用无效"));
@@ -385,7 +441,7 @@ pub fn validate(s: &Snapshot) -> Result<()> {
             if k == "billing_period" && !["month", "year", "once"].contains(&v.as_str()) {
                 return Err("计费周期无效".into());
             }
-            if ["repository", "authority_ref", "endpoint", "backup_ref"].contains(&k.as_str())
+            if ["repository", "authority_ref", "endpoint", "backup_ref", "path"].contains(&k.as_str())
                 && (v.contains('@') && v.contains("://")
                     || v.contains("token=")
                     || v.contains("password="))
@@ -467,6 +523,40 @@ pub fn validate(s: &Snapshot) -> Result<()> {
                             "使用区间重叠：请交接或结束旧记录；多人同时使用须均为共用".into()
                         );
                     }
+                }
+            }
+        }
+        if a.kind == "copy" {
+            for key in ["resource_id", "holder_id"] {
+                if a.fields.get(key).is_none_or(|v| v.is_empty()) {
+                    return Err(format!("资源副本缺少 {key}"));
+                }
+            }
+        }
+        if a.kind == "connection" {
+            for key in ["network_id", "node_id"] {
+                if a.fields.get(key).is_none_or(|v| v.is_empty()) {
+                    return Err(format!("节点接入缺少 {key}"));
+                }
+            }
+            if a.fields
+                .get("probe_state")
+                .is_some_and(|v| !v.is_empty() && v != "untested")
+                && a.fields.get("probe_at").is_none_or(|v| {
+                    chrono::DateTime::parse_from_rfc3339(v).is_err()
+                })
+            {
+                return Err("标记连通性必须填写有效测试时间，配置存在不等于连通".into());
+            }
+            if let Some(software_id) = a.fields.get("software_id").filter(|v| !v.is_empty()) {
+                let installation = s.assets.iter().find(|x| x.id == *software_id);
+                let env = installation
+                    .and_then(|x| x.fields.get("environment_id"))
+                    .and_then(|id| s.assets.iter().find(|x| x.id == *id));
+                let node = a.fields.get("node_id").map(String::as_str);
+                let env_device = env.and_then(|e| e.fields.get("device_id")).map(String::as_str);
+                if node != env.map(|e| e.id.as_str()) && node != env_device {
+                    return Err("网络节点与软件安装环境不一致；不能混淆宿主和客户机".into());
                 }
             }
         }
@@ -684,7 +774,7 @@ pub fn import_snapshot(
         return Err("恢复仅允许空台账；请先切换到新的数据文件".into());
     }
     incoming.revision = current.revision;
-    incoming.version = 2;
+    incoming.version = 3;
     event(
         &mut incoming,
         "restore",
@@ -707,7 +797,7 @@ pub fn replace_snapshot(
     let current = read(&tx)?;
     check_revision(&current, revision)?;
     backup(&current, dir)?;
-    incoming.version = 2;
+    incoming.version = 3;
     incoming.revision = current.revision;
     event(
         &mut incoming,

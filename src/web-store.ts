@@ -112,7 +112,7 @@ export async function webCommand<T>(
       try {
         let s: Snapshot = r.result || structuredClone(empty);
         validateSnapshot(s);
-        s.version = 2;
+        s.version = 3;
         if (name === "load") {
           result = s;
           return;
@@ -194,13 +194,13 @@ export async function webCommand<T>(
             throw Error("恢复仅允许空台账；请先创建空工作空间");
           s = structuredClone(args.snapshot as Snapshot);
           s.revision = before.revision;
-          s.version = 2;
+          s.version = 3;
           action = "restore";
           detail = "从快照恢复";
         } else if (name === "replace_snapshot") {
           s = structuredClone(args.snapshot as Snapshot);
           s.revision = before.revision;
-          s.version = 2;
+          s.version = 3;
           action = "sync_download";
           detail = "应用同步快照（旧台账已备份）";
           tx.objectStore("backups").put(before, uid());
