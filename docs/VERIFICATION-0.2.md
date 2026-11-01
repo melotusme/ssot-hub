@@ -10,7 +10,8 @@
 - Postman CLI 1.74.0 本地 HTTP 模拟：真实 `browserTransport` + 加密函数执行创建目录、首次 PUT/GET、未知/旧云端版本拒绝、远端写前备份、更新回读及 HTTP 503。没有使用真实云端凭据。复现：启动 `postman simulation run postman/simulations/webdav.sim.yaml --port 4019 --no-history`，另一终端 `bun scripts/verify-sync.ts`。
 - ego-browser 真实浏览器：登记虚构家庭笔记本，刷新读回，证实 Web IndexedDB 持久化，不是内存演示。
 - Rust Clippy 全目标 `-D warnings` 通过。本地 macOS ARM64 `.app` 构建、ad-hoc 签名和严格验签通过，未覆盖已安装旧版；这不是 Apple Developer ID 签名或公证。
-- 私有仓库 `melotusme/ssot-hub` 已创建并核实 `isPrivate: true`。首轮 [Actions 41284884819](https://github.com/melotusme/ssot-hub/actions/runs/41284884819) 的 Web、macOS、Windows 测试与打包全部成功，源码为 `c2c798adc61e6aac5730a29e126fbd054d1f2188`。最终预览包采用后续同一提交的全绿构建，见 Release 记录。
+- 私有仓库 `melotusme/ssot-hub` 已创建并核实 `isPrivate: true`。最终 [Actions 41306210407](https://github.com/melotusme/ssot-hub/actions/runs/41306210407) 的 Web、macOS ARM64、Windows x64 测试与打包全部成功，三个包均来自源码 `5f23aee66b4c46e7f794870aadcbbdc8d6dea8ec`。CI 检查 Mach-O ARM64、Windows 应用 PE x64 和 macOS ad-hoc 签名，先压缩 `.app` 再上传以保留权限。
+- 本地 macOS 包已启动和退出；事前保存完整应用数据备份，事后数据库与工作空间指针 SHA-256 均未变化。桌面控制工具报 `Sky Computer Use native pipe startup failed`，因此没有把进程启动当作窗口操作成功。
 - 源码发布前扫描常见密钥格式未命中；排除 SQLite、真实清单、.serena、环境文件和依赖缓存。样例仅测试资料。
 
 ## 尚未核实
@@ -20,6 +21,7 @@
 - Android / iOS 当前为 Web/PWA 方案，无 APK/IPA、无商店发布、无真机安装验证。私有 HTTPS Web 托管未选择。
 - 浏览器验收任务空间中途消失，已停止浏览器操作并请求用户允许重建；手机布局、离线 PWA 和真实浏览器完整交接暂未完成。不会用自动化集成测试冒充这些结果。
 - Apple 公证、Windows Authenticode、应用内签名更新尚未配置；CI 构建不等于实体设备安装验收。
+- 原生 macOS UI 验收因桌面控制工具不可用而未完成；没有替换已安装旧版。
 
 ## 构建环境
 
