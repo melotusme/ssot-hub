@@ -303,15 +303,31 @@ export function demo(): Snapshot {
   };
 }
 
-/** An AI-proposed asset, already checked against the schema by the backend. */
-export interface AiDraft {
-  asset: Asset;
+/** One operation the AI proposed, already checked against the schema by the backend. */
+export interface PlanItem {
+  key: string;
+  op: "create" | "update" | "relate" | "retire";
+  title: string;
+  details: string[];
   warnings: string[];
-  /** Required fields are filled. */
+  /** Complete enough to apply. */
   ready: boolean;
+  /** Create: the new asset. Update / retire: the asset after the change. */
+  asset: Asset | null;
+  /** Relate: the new relation. */
+  link: Link | null;
+  /** Relate (uses): the open use that ends when this one starts. */
+  ends: string | null;
+  /** Keys of create items this one refers to. */
+  needs: string[];
 }
-export interface AiExtraction {
-  drafts: AiDraft[];
+export interface AiQuestion {
+  text: string;
+  options: string[];
+}
+export interface AiPlan {
+  items: PlanItem[];
+  questions: AiQuestion[];
   notes: string[];
   model: string;
 }

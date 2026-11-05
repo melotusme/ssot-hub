@@ -60,6 +60,7 @@ import BackupPanel from "./BackupPanel";
 import NetworkImport from "./NetworkImport";
 import AiImport from "./AiImport";
 import AiPanel from "./AiPanel";
+import QuickCapture from "./QuickCapture";
 import { AssetEditor, ModalFrame } from "./components/AssetEditor";
 import { RelationForm, TransferForm, UsagePanel } from "./components/Relations";
 import {
@@ -91,7 +92,7 @@ type Modal =
   | { type: "new" }
   | { type: "demo" }
   | { type: "network" }
-  | { type: "ai" };
+  | { type: "ai"; text?: string; pasted?: string[] };
 const actionNames: Record<string, string> = {
   create: "登记资产",
   update: "更新资产",
@@ -855,6 +856,12 @@ export default function App() {
             <>
               {view === "overview" && (
                 <>
+                  <QuickCapture
+                    submit={(text, pasted) =>
+                      openModal({ type: "ai", text, pasted })
+                    }
+                    manual={() => newAsset("device")}
+                  />
                   <div className="stats">
                     {[
                       {
@@ -1567,10 +1574,12 @@ export default function App() {
             snapshot={snapshot}
             busy={busy}
             error={error}
-            apply={(assets) =>
+            initialText={modal.text}
+            initialPasted={modal.pasted}
+            apply={(changes) =>
               mutate(
-                (rev) => commands.ai_apply(assets, rev),
-                `已登记 ${assets.length} 项 AI 草稿，资料依据标为「用户描述」`,
+                (rev) => commands.ai_apply(changes, rev),
+                `已写入：新建 ${changes.create.length} 项、修改 ${changes.update.length} 项、关系 ${changes.link.length} 条`,
               )
             }
             openSettings={() => {

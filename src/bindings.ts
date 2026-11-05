@@ -55,9 +55,9 @@ export const commands = {
 	 *  Ask the active AI service for drafts. Sends the given text and images plus the id, type and
 	 *  name of existing assets; nothing is written.
 	 */
-	ai_extract: (text: string, images: string[], kindHint: string | null) => __TAURI_INVOKE<Extraction>("ai_extract", { text, images, kindHint }),
-	/**  Register confirmed drafts as new assets in one transaction. */
-	ai_apply: (assets: Asset[], revision: number) => __TAURI_INVOKE<Snapshot_Serialize>("ai_apply", { assets, revision }),
+	ai_extract: (text: string, images: string[], pasted: string[] | null, kindHint: string | null) => __TAURI_INVOKE<Plan_Serialize>("ai_extract", { text, images, pasted, kindHint }),
+	/**  Apply the operations the user confirmed, all in one transaction. */
+	ai_apply: (changes: Changes_Deserialize, revision: number) => __TAURI_INVOKE<Snapshot_Serialize>("ai_apply", { changes, revision }),
 };
 
 /* Types */
@@ -109,17 +109,31 @@ export type Change_Serialize = {
 	match_window: string,
 };
 
+/**  A confirmed set of changes: new assets, changed assets, new relations and uses to end. */
+export type Changes = Changes_Serialize | Changes_Deserialize;
+
+/**  A confirmed set of changes: new assets, changed assets, new relations and uses to end. */
+export type Changes_Deserialize = {
+	create: Asset[],
+	update: Asset[],
+	link: Link_Deserialize[],
+	/**  (open `uses` relation id, end date) */
+	end_uses: ([string, string])[],
+};
+
+/**  A confirmed set of changes: new assets, changed assets, new relations and uses to end. */
+export type Changes_Serialize = {
+	create: Asset[],
+	update: Asset[],
+	link: Link_Serialize[],
+	/**  (open `uses` relation id, end date) */
+	end_uses: ([string, string])[],
+};
+
 export type DeletePlan = {
 	revision: number,
 	asset: Asset,
 	blockers: string[],
-};
-
-export type Draft = {
-	asset: Asset,
-	warnings: string[],
-	/**  Required fields are filled; false drafts need editing before they can be saved. */
-	ready: boolean,
 };
 
 export type EngineName = "hammerspoon" | "ahk_v2";
@@ -130,12 +144,6 @@ export type Event = {
 	actor: string,
 	action: string,
 	detail: string,
-};
-
-export type Extraction = {
-	drafts: Draft[],
-	notes: string[],
-	model: string,
 };
 
 export type Field = Field_Serialize | Field_Deserialize;
@@ -222,6 +230,66 @@ export type MagpieConnection_Serialize = {
 	models: string[],
 };
 
+export type Op = "create" | "update" | "relate" | "retire";
+
+export type Plan = Plan_Serialize | Plan_Deserialize;
+
+export type PlanItem = PlanItem_Serialize | PlanItem_Deserialize;
+
+export type PlanItem_Deserialize = {
+	/**  Stable key for selection in the UI. */
+	key: string,
+	op: Op,
+	title: string,
+	/**  Readable lines: "种类：平板", "所有者：我 → 孩子". */
+	details: string[],
+	warnings: string[],
+	/**  Complete enough to apply; incomplete creates need editing first. */
+	ready: boolean,
+	/**  Create: the new asset. Update / retire: the asset after the change. */
+	asset?: Asset | null,
+	/**  Relate: the new relation. */
+	link?: Link_Deserialize | null,
+	/**  Relate (uses): the open use that ends when this one starts. */
+	ends?: string | null,
+	/**  Keys of create items this item refers to. */
+	needs: string[],
+};
+
+export type PlanItem_Serialize = {
+	/**  Stable key for selection in the UI. */
+	key: string,
+	op: Op,
+	title: string,
+	/**  Readable lines: "种类：平板", "所有者：我 → 孩子". */
+	details: string[],
+	warnings: string[],
+	/**  Complete enough to apply; incomplete creates need editing first. */
+	ready: boolean,
+	/**  Create: the new asset. Update / retire: the asset after the change. */
+	asset: Asset | null,
+	/**  Relate: the new relation. */
+	link: Link_Serialize | null,
+	/**  Relate (uses): the open use that ends when this one starts. */
+	ends: string | null,
+	/**  Keys of create items this item refers to. */
+	needs: string[],
+};
+
+export type Plan_Deserialize = {
+	items: PlanItem_Deserialize[],
+	questions: Question[],
+	notes: string[],
+	model: string,
+};
+
+export type Plan_Serialize = {
+	items: PlanItem_Serialize[],
+	questions: Question[],
+	notes: string[],
+	model: string,
+};
+
 export type Preview = {
 	revision: string,
 	before: string,
@@ -260,6 +328,11 @@ export type Provider_Serialize = {
 	has_key: boolean,
 	/**  `magpie` for the one-click local gateway. */
 	source: string | null,
+};
+
+export type Question = {
+	text: string,
+	options: string[],
 };
 
 /**  A typed relation between two assets, optionally with attributes and a time span. */

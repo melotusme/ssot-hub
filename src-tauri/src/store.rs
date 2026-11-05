@@ -399,28 +399,62 @@ pub fn apply_batch(c: &mut Connection, assets: Vec<Asset>, revision: u64) -> Res
     Ok(s)
 }
 
-/// Insert new assets only; any id already in the ledger is refused, so nothing is overwritten.
-pub fn create_batch(
-    c: &mut Connection,
-    assets: Vec<Asset>,
-    revision: u64,
-    action: &str,
-) -> Result<Snapshot> {
-    if assets.is_empty() {
-        return Err("没有选择要登记的条目".into());
+/// A confirmed set of changes: new assets, changed assets, new relations and uses to end.
+#[derive(Debug, Default, Serialize, Deserialize, specta::Type)]
+pub struct Changes {
+    pub create: Vec<Asset>,
+    pub update: Vec<Asset>,
+    pub link: Vec<Link>,
+    /// (open `uses` relation id, end date)
+    pub end_uses: Vec<(String, String)>,
+}
+
+/// Apply `Changes` in one transaction; any invalid part refuses the whole set.
+pub fn apply_changes(c: &mut Connection, changes: Changes, revision: u64, action: &str) -> Result<Snapshot> {
+    if changes.create.is_empty() && changes.update.is_empty() && changes.link.is_empty() && changes.end_uses.is_empty() {
+        return Err("没有选择要应用的操作".into());
     }
     let tx = c
         .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
         .map_err(error)?;
     let mut s = read(&tx)?;
     check_revision(&s, revision)?;
-    if assets.iter().any(|a| s.assets.iter().any(|x| x.id == a.id)) {
-        return Err("条目已存在，不能重复登记".into());
+    let mut summary = vec![];
+    for a in changes.create {
+        if s.assets.iter().any(|x| x.id == a.id) {
+            return Err("条目已存在，不能重复登记".into());
+        }
+        summary.push(format!("新建 {}", a.name));
+        s.assets.push(a);
     }
-    let names: Vec<String> = assets.iter().map(|a| a.name.clone()).collect();
-    s.assets.extend(assets);
+    for a in changes.update {
+        let old = s.assets.iter_mut().find(|x| x.id == a.id).ok_or("要修改的资产不存在")?;
+        if old.kind != a.kind {
+            return Err("不能改变资产类型".into());
+        }
+        summary.push(format!("修改 {}", a.name));
+        *old = a;
+    }
+    for (id, ends_on) in changes.end_uses {
+        let l = s
+            .links
+            .iter_mut()
+            .find(|l| l.id == id && l.kind == "uses")
+            .ok_or("要结束的使用记录不存在")?;
+        if l.attrs.get("ends_on").is_some_and(|v| !v.is_empty()) {
+            return Err("这条使用记录已经结束".into());
+        }
+        l.attrs.insert("ends_on".into(), ends_on);
+    }
+    for l in changes.link {
+        if s.links.iter().any(|x| x.id == l.id) {
+            return Err("关系已存在".into());
+        }
+        summary.push(format!("关系 {}", l.kind));
+        s.links.push(l);
+    }
     validate(&s)?;
-    event(&mut s, action, serde_json::json!({ "created": names }).to_string());
+    event(&mut s, action, serde_json::json!({ "applied": summary }).to_string());
     persist(&tx, &mut s)?;
     tx.commit().map_err(error)?;
     Ok(s)
@@ -608,15 +642,28 @@ mod tests {
         assert!(validate(&snapshot(vec![legacy])).is_ok());
     }
     #[test]
-    fn create_batch_is_insert_only_and_atomic() {
+    fn apply_changes_hands_over_and_is_all_or_nothing() {
         let mut c = db();
-        let s = create_batch(&mut c, vec![asset("p", "person")], 0, "ai_import").unwrap();
-        assert_eq!(s.events.last().unwrap().action, "ai_import");
-        assert!(create_batch(&mut c, vec![asset("p", "person")], s.revision, "ai_import").is_err());
-        let mut bad = asset("d", "device");
-        bad.fields.insert("owner_id".into(), "missing".into());
-        assert!(create_batch(&mut c, vec![asset("ok", "person"), bad], s.revision, "ai_import").is_err());
-        assert_eq!(read(&c).unwrap().assets.len(), 1);
+        let s = family(&mut c);
+        let s = save_link(&mut c, uses("old", "me", "2025-01-01"), s.revision).unwrap();
+        let mut ipad = asset("ipad", "device");
+        ipad.fields.insert("owner_id".into(), "me".into());
+        let mut laptop = s.assets.iter().find(|a| a.id == "laptop").unwrap().clone();
+        laptop.fields.insert("location".into(), "家里".into());
+        let changes = Changes {
+            create: vec![ipad],
+            update: vec![laptop],
+            link: vec![uses("new", "child", "2026-11-05")],
+            end_uses: vec![("old".into(), "2026-11-05".into())],
+        };
+        let s = apply_changes(&mut c, changes, s.revision, "ai_import").unwrap();
+        assert_eq!(s.links.iter().find(|l| l.id == "old").unwrap().attrs["ends_on"], "2026-11-05");
+        assert!(s.assets.iter().any(|a| a.id == "ipad"));
+        assert_eq!(s.assets.iter().find(|a| a.id == "laptop").unwrap().fields["location"], "家里");
+        // A second handover without ending the open use overlaps, so nothing is written.
+        let bad = Changes { link: vec![uses("third", "me", "2026-12-01")], create: vec![asset("x", "person")], ..Default::default() };
+        assert!(apply_changes(&mut c, bad, s.revision, "ai_import").is_err());
+        assert!(!read(&c).unwrap().assets.iter().any(|a| a.id == "x"));
     }
     #[test]
     fn transfer_is_atomic_preserves_history_and_rejects_stale_writes() {

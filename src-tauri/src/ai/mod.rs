@@ -2,6 +2,7 @@
 pub mod client;
 pub mod config;
 pub mod extract;
+pub mod plan;
 
 use config::{AiSettings, KeyStore, Keychain, Provider};
 use serde::Serialize;
@@ -158,20 +159,23 @@ pub async fn ai_extract(
     state: tauri::State<'_, crate::AppState>,
     text: String,
     images: Vec<String>,
+    pasted: Option<Vec<String>>,
     kind_hint: Option<String>,
-) -> Result<extract::Extraction> {
-    if text.trim().is_empty() && images.is_empty() {
+) -> Result<plan::Plan> {
+    let pasted = pasted.unwrap_or_default();
+    if text.trim().is_empty() && images.is_empty() && pasted.is_empty() {
         return Err("请粘贴文字或添加截图".into());
     }
     if text.chars().count() > MAX_TEXT_CHARS {
         return Err("文字过长，请分段录入（上限 2 万字）".into());
     }
-    if images.len() > MAX_IMAGES {
+    if images.len() + pasted.len() > MAX_IMAGES {
         return Err("一次最多 4 张图片".into());
     }
     let images = images
         .iter()
         .map(|p| load_image(Path::new(p)))
+        .chain(pasted.iter().map(|d| decode_pasted(d)))
         .collect::<Result<Vec<_>>>()?;
     let settings = config::load(&data_dir(&app)?)?;
     let provider = settings.active_provider()?.clone();
@@ -179,7 +183,7 @@ pub async fn ai_extract(
     let snapshot = crate::store::read(&crate::connect(&state)?)?;
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
     let system = extract::system_prompt(kind_hint.as_deref(), &today);
-    let user = extract::user_prompt(&text, &snapshot);
+    let user = extract::user_prompt(&text, &snapshot, &today);
     let answer = client::chat(
         &provider,
         key.as_deref(),
@@ -188,18 +192,36 @@ pub async fn ai_extract(
     .await?;
     let parsed = extract::parse_answer(&answer)?;
     let evidence = format!("AI 辅助录入 · {} · {}", provider.name, provider.model);
-    Ok(extract::sanitize(&parsed, &snapshot, &evidence, &provider.model))
+    Ok(plan::build(&parsed, &snapshot, &evidence, &provider.model, &today))
 }
 
-/// Register confirmed drafts as new assets in one transaction.
+/// Apply the operations the user confirmed, all in one transaction.
 #[tauri::command]
 #[specta::specta]
 pub fn ai_apply(
     state: tauri::State<'_, crate::AppState>,
-    assets: Vec<crate::store::Asset>,
+    changes: crate::store::Changes,
     revision: u64,
 ) -> Result<crate::store::Snapshot> {
-    crate::store::create_batch(&mut crate::connect(&state)?, assets, revision, "ai_import")
+    crate::store::apply_changes(&mut crate::connect(&state)?, changes, revision, "ai_import")
+}
+
+/// A screenshot pasted from the clipboard, as a `data:image/...;base64,` URL.
+fn decode_pasted(data_url: &str) -> Result<client::Image> {
+    let (head, body) = data_url.split_once(',').ok_or("粘贴的图片格式无效")?;
+    let media_type = head
+        .strip_prefix("data:")
+        .and_then(|h| h.strip_suffix(";base64"))
+        .filter(|t| ["image/png", "image/jpeg", "image/webp", "image/gif"].contains(t))
+        .ok_or("只支持粘贴 PNG、JPEG、WebP 或 GIF 图片")?;
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(body)
+        .map_err(|_| "粘贴的图片内容无效")?;
+    if bytes.len() as u64 > MAX_IMAGE_BYTES {
+        return Err("粘贴的图片超过 5 MB".into());
+    }
+    Ok(client::Image { media_type: media_type.into(), base64: body.into() })
 }
 
 #[cfg(test)]
@@ -214,6 +236,13 @@ mod tests {
             .collect();
         assert_eq!(pick_model(&models).as_deref(), Some("y/claude-sonnet-5"));
         assert_eq!(pick_model(&models[..2]), None);
+    }
+
+    #[test]
+    fn pasted_images_are_checked() {
+        assert_eq!(decode_pasted("data:image/png;base64,iVBORw0K").unwrap().media_type, "image/png");
+        assert!(decode_pasted("data:text/html;base64,PGI+").is_err());
+        assert!(decode_pasted("data:image/png;base64,***").is_err());
     }
 
     #[test]
@@ -239,27 +268,25 @@ mod tests {
             let models = client::models(&probe, None).await.unwrap();
             let model = std::env::var("MAGPIE_MODEL").ok().or_else(|| pick_model(&models)).unwrap();
             let provider = config::magpie_provider(&AiSettings::default(), &model);
-            let snapshot = crate::store::Snapshot {
-                version: 3,
-                revision: 0,
-                assets: vec![crate::store::Asset {
-                    id: "11111111-1111-1111-1111-111111111111".into(),
-                    kind: "person".into(),
-                    name: "小明".into(),
-                    status: "active".into(),
-                    fields: Default::default(),
-                }],
-                links: vec![],
-                events: vec![],
-            };
-            let text = "虚构示例：2026-11-03 在京东给小明买了 iPad Air 11 寸 256G，2999 元，序列号 DEMO123。同时开通了 iCloud+ 200G，每月 21 元，用 Apple ID demo@example.invalid 付款，自动续费。";
+            let snapshot = extract::tests::ledger();
+            let default_text = "虚构示例：MacBook-A 以后给孩子用，我换 M4 了。另外新开了 iCloud+ 200G，每月 21 元，自动续费。";
+            let owned = std::env::var("SSOT_LIVE_TEXT").unwrap_or_else(|_| default_text.into());
+            let text = owned.as_str();
             let system = extract::system_prompt(None, "2026-11-05");
-            let user = extract::user_prompt(text, &snapshot);
-            let answer = client::chat(&provider, None, &client::Chat { system: &system, user: &user, images: &[] }).await.unwrap();
+            let user = extract::user_prompt(text, &snapshot, "2026-11-05");
+            // SSOT_LIVE_IMAGE: a screenshot sent alongside (or instead of) the text.
+            let images: Vec<client::Image> = std::env::var("SSOT_LIVE_IMAGE")
+                .ok()
+                .map(|p| load_image(Path::new(&p)).unwrap())
+                .into_iter()
+                .collect();
+            let answer = client::chat(&provider, None, &client::Chat { system: &system, user: &user, images: &images })
+                .await
+                .unwrap();
             let parsed = extract::parse_answer(&answer).unwrap();
-            let e = extract::sanitize(&parsed, &snapshot, "AI 辅助录入 · test", &model);
+            let e = plan::build(&parsed, &snapshot, "AI 辅助录入 · test", &model, "2026-11-05");
             println!("model={model}\n{}", serde_json::to_string_pretty(&e).unwrap());
-            assert!(!e.drafts.is_empty());
+            assert!(!e.items.is_empty());
         });
     }
 }

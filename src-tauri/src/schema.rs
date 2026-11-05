@@ -202,6 +202,8 @@ fn build() -> Schema {
             ];
             v.extend(observed());
             v.push(f("purchased_on", "购买日期").date());
+            v.push(f("price", "购买价格").placeholder("2999"));
+            v.push(f("currency", "币种").placeholder("CNY"));
             v
         }),
         kind("environment", "系统", "系统与软件", {

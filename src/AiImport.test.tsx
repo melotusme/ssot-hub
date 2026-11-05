@@ -9,11 +9,11 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
-import { empty, type AiDraft, type Asset } from "./model";
+import { empty, type AiPlan, type Asset, type PlanItem } from "./model";
 const invoke = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: vi.fn() }));
-import AiImport, { detachUnselected } from "./AiImport";
+import AiImport from "./AiImport";
 import AiPanel from "./AiPanel";
 
 const asset = (
@@ -37,26 +37,61 @@ const provider = {
   has_key: false,
   source: "magpie",
 };
-const drafts: AiDraft[] = [
-  {
-    asset: asset("acc", "account", "Google 个人", { provider: "Google" }),
-    warnings: [],
-    ready: true,
-  },
-  {
-    asset: asset("sub", "subscription", "Google One", {
-      account_id: "acc",
-      billing_period: "year",
+const item = (
+  key: string,
+  op: PlanItem["op"],
+  title: string,
+  extra: Partial<PlanItem> = {},
+): PlanItem => ({
+  key,
+  op,
+  title,
+  details: [],
+  warnings: [],
+  ready: true,
+  asset: null,
+  link: null,
+  ends: null,
+  needs: [],
+  ...extra,
+});
+const plan: AiPlan = {
+  model: provider.model,
+  notes: ["整理出 4 项"],
+  questions: [{ text: "M4 谁在用？", options: ["我", "孩子"] }],
+  items: [
+    item("create:m4", "create", "新建设备「MacbookM4」", {
+      asset: asset("m4", "device", "MacbookM4", { device_kind: "laptop" }),
+      details: ["种类：笔记本电脑"],
     }),
-    warnings: ["到期日期「2027-02-30」不是有效日期，未填写"],
-    ready: true,
-  },
-  {
-    asset: asset("app", "software", "Raycast"),
-    warnings: ["缺少必填：所属系统环境，请编辑后再登记"],
-    ready: false,
-  },
-];
+    item("relate:0", "relate", "孩子 使用 MacBook-A", {
+      link: {
+        id: "l1",
+        type: "uses",
+        from: "kid",
+        to: "m3",
+        attrs: { usage_role: "primary", starts_on: "2026-11-05" },
+      },
+      ends: "old-use",
+      details: ["交接：我 的使用在 2026-11-05 结束，历史保留"],
+    }),
+    item("relate:1", "relate", "我 使用 MacbookM4", {
+      link: {
+        id: "l2",
+        type: "uses",
+        from: "me",
+        to: "m4",
+        attrs: { usage_role: "primary", starts_on: "2026-11-05" },
+      },
+      needs: ["create:m4"],
+    }),
+    item("create:app", "create", "新建软件「Raycast」", {
+      asset: asset("app", "software", "Raycast"),
+      ready: false,
+      warnings: ["缺少必填：所在系统，请编辑后再登记"],
+    }),
+  ],
+};
 
 beforeEach(() => {
   localStorage.clear();
@@ -71,12 +106,11 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("AI 辅助录入", () => {
-  it("生成草稿后只能登记可用的条目，未选草稿的引用会被去掉", async () => {
+  it("首页带来的材料自动整理；交接和依赖新建项的关系一起写入", async () => {
     invoke.mockImplementation(async (name: string) => {
       if (name === "ai_settings")
         return { providers: [provider], active: "p1" };
-      if (name === "ai_extract")
-        return { drafts, notes: ["从材料识别出 3 项"], model: provider.model };
+      if (name === "ai_extract") return plan;
       throw Error("unexpected " + name);
     });
     const apply = vi.fn();
@@ -88,32 +122,67 @@ describe("AI 辅助录入", () => {
         error=""
         apply={apply}
         openSettings={() => {}}
+        initialText="MacBook-A 给孩子用了，我换 M4"
       />,
     );
-    await screen.findByText(/Magpie（本机）（x\/claude-sonnet-5）/);
-    await user.type(screen.getByLabelText("材料"), "Google One 年付 99 元");
-    await user.click(screen.getByRole("button", { name: "用 AI 生成草稿" }));
-    await screen.findByText("从材料识别出 3 项");
+    await screen.findByText("整理出 4 项");
     expect(invoke).toHaveBeenCalledWith("ai_extract", {
-      text: "Google One 年付 99 元",
+      text: "MacBook-A 给孩子用了，我换 M4",
       images: [],
+      pasted: [],
       kindHint: null,
     });
+    expect(screen.getByText(/交接：我 的使用/)).toBeInTheDocument();
     const raycast = screen
-      .getByText("Raycast")
+      .getByText("新建软件「Raycast」")
       .closest(".ai-draft-row") as HTMLElement;
     expect(within(raycast).getByRole("checkbox")).toBeDisabled();
-    expect(within(raycast).getByText(/缺少必填/)).toBeInTheDocument();
-    // The subscription references the account by name in the summary.
-    expect(screen.getByText(/付费账号：Google 个人/)).toBeInTheDocument();
-    const account = screen
-      .getByText("Google 个人", { selector: "strong" })
+    // Unticking the new M4 blocks the relation that needs it.
+    const m4 = screen
+      .getByText("新建设备「MacbookM4」")
       .closest(".ai-draft-row") as HTMLElement;
-    await user.click(within(account).getByRole("checkbox"));
-    await user.click(screen.getByRole("button", { name: "登记所选 1 项" }));
-    const sent = apply.mock.calls[0][0] as Asset[];
-    expect(sent.map((a) => a.id)).toEqual(["sub"]);
-    expect(sent[0].fields.account_id).toBeUndefined();
+    await user.click(within(m4).getByRole("checkbox"));
+    const mine = screen
+      .getByText("我 使用 MacbookM4")
+      .closest(".ai-draft-row") as HTMLElement;
+    expect(within(mine).getByRole("checkbox")).toBeDisabled();
+    expect(within(mine).getByText(/需要先勾选/)).toBeInTheDocument();
+    await user.click(within(m4).getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "确认并写入" }));
+    expect(apply).toHaveBeenCalledWith({
+      create: [plan.items[0].asset],
+      update: [],
+      link: [plan.items[1].link, plan.items[2].link],
+      end_uses: [["old-use", "2026-11-05"]],
+    });
+  });
+
+  it("点追问的候选答案会补充材料并重新整理", async () => {
+    invoke.mockImplementation(async (name: string) => {
+      if (name === "ai_settings")
+        return { providers: [provider], active: "p1" };
+      if (name === "ai_extract") return plan;
+      throw Error("unexpected " + name);
+    });
+    const user = userEvent.setup();
+    render(
+      <AiImport
+        snapshot={empty}
+        busy={false}
+        error=""
+        apply={() => {}}
+        openSettings={() => {}}
+      />,
+    );
+    await user.type(await screen.findByLabelText("材料"), "换了 M4");
+    await user.click(screen.getByRole("button", { name: "交给 AI 整理" }));
+    await user.click(await screen.findByRole("button", { name: "孩子" }));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenLastCalledWith(
+        "ai_extract",
+        expect.objectContaining({ text: "换了 M4\n补充：M4 谁在用？ 孩子" }),
+      ),
+    );
   });
 
   it("没有接入时可以一键接入 Magpie", async () => {
@@ -173,12 +242,4 @@ describe("AI 辅助录入", () => {
     expect(await screen.findByText(/已存钥匙串/)).toBeInTheDocument();
     expect(screen.queryByDisplayValue("sk-secret")).not.toBeInTheDocument();
   });
-});
-
-it("detachUnselected 只去掉指向未选草稿的引用", () => {
-  const out = detachUnselected(
-    [asset("sub", "subscription", "x", { account_id: "acc", owner_id: "me" })],
-    drafts,
-  );
-  expect(out[0].fields).toEqual({ verification: "reported", owner_id: "me" });
 });

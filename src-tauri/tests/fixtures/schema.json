@@ -161,6 +161,19 @@
           "tier": "more"
         },
         {
+          "key": "price",
+          "label": "购买价格",
+          "placeholder": "2999",
+          "tier": "more"
+        },
+        {
+          "key": "currency",
+          "label": "币种",
+          "placeholder": "CNY",
+          "tier": "more",
+          "default": "CNY"
+        },
+        {
           "key": "review_note",
           "label": "待确认 / 盘点缺口",
           "type": "textarea",

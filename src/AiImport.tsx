@@ -1,58 +1,57 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent } from "react";
 import { ImagePlus, LoaderCircle, Sparkles, X, Zap } from "lucide-react";
 import { chooseImages, commands } from "./api";
 import { RecordList } from "./components/RecordList";
 import { AssetEditor } from "./components/AssetEditor";
+import { blockedBy, canApply, planToChanges, type Changes } from "./ai-plan";
 import {
-  fields,
   kinds,
   missingRequired,
   names,
-  type AiDraft,
+  type AiPlan,
   type Asset,
   type Kind,
+  type PlanItem,
   type Snapshot,
 } from "./model";
 import type { AiSettings_Serialize as AiSettings } from "./bindings";
+
+const MAX_IMAGES = 4;
+const opNames: Record<PlanItem["op"], string> = {
+  create: "新建",
+  update: "修改",
+  relate: "使用 / 关联",
+  retire: "退役",
+};
+
+/** Screenshots pasted from the clipboard become data URLs sent with the request. */
+export async function pastedImages(e: ClipboardEvent): Promise<string[]> {
+  const files = Array.from(e.clipboardData?.items ?? [])
+    .filter((i) => i.kind === "file" && i.type.startsWith("image/"))
+    .map((i) => i.getAsFile())
+    .filter((f): f is File => !!f);
+  return Promise.all(
+    files.map(
+      (f) =>
+        new Promise<string>((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result));
+          r.onerror = () => reject(Error("无法读取粘贴的图片"));
+          r.readAsDataURL(f);
+        }),
+    ),
+  );
+}
 
 interface AiImportProps {
   snapshot: Snapshot;
   busy: boolean;
   error: string;
-  apply: (assets: Asset[]) => void;
+  apply: (changes: Changes) => void;
   openSettings: () => void;
-}
-
-const SHOWN_FIELDS = 4;
-
-/** A short "label: value" summary; references show the target's name. */
-function summary(a: Asset, lookup: Map<string, Asset>): string {
-  return fields[a.kind]
-    .filter(
-      (f) => a.fields[f.key] && !["verification", "evidence"].includes(f.key),
-    )
-    .slice(0, SHOWN_FIELDS)
-    .map((f) => {
-      const v = a.fields[f.key];
-      const shown = f.ref
-        ? lookup.get(v)?.name || v
-        : f.options?.find(([k]) => k === v)?.[1] || v;
-      return `${f.label.replace(/ \*$/, "")}：${shown}`;
-    })
-    .join(" · ");
-}
-
-/** Drop references to drafts that are not being registered, so the batch stays valid. */
-export function detachUnselected(chosen: Asset[], all: AiDraft[]): Asset[] {
-  const dropped = new Set(
-    all.map((d) => d.asset.id).filter((id) => !chosen.some((a) => a.id === id)),
-  );
-  return chosen.map((a) => ({
-    ...a,
-    fields: Object.fromEntries(
-      Object.entries(a.fields).filter(([, v]) => !dropped.has(v)),
-    ),
-  }));
+  /** Prefilled from the overview's quick input; runs right away when given. */
+  initialText?: string;
+  initialPasted?: string[];
 }
 
 export default function AiImport({
@@ -61,24 +60,25 @@ export default function AiImport({
   error,
   apply,
   openSettings,
+  initialText = "",
+  initialPasted = [],
 }: AiImportProps) {
   const [settings, setSettings] = useState<AiSettings | null>(null);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const [images, setImages] = useState<string[]>([]);
+  const [pasted, setPasted] = useState<string[]>(initialPasted);
   const [hint, setHint] = useState<Kind | "">("");
-  const [drafts, setDrafts] = useState<AiDraft[]>([]);
-  const [notes, setNotes] = useState<string[]>([]);
+  const [plan, setPlan] = useState<AiPlan | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [editing, setEditing] = useState<Asset | null>(null);
+  const [editing, setEditing] = useState<PlanItem | null>(null);
   const [working, setWorking] = useState(false);
   const [localError, setError] = useState("");
+  const started = useRef(false);
   useEffect(() => {
     commands.ai_settings().then(setSettings, (e) => setError(String(e)));
   }, []);
   const active = settings?.providers.find((p) => p.id === settings.active);
-  const lookup = new Map(
-    [...snapshot.assets, ...drafts.map((d) => d.asset)].map((a) => [a.id, a]),
-  );
+  const items = plan?.items ?? [];
   const attempt = async (fn: () => Promise<void>) => {
     setWorking(true);
     setError("");
@@ -90,38 +90,61 @@ export default function AiImport({
       setWorking(false);
     }
   };
-  const extract = () =>
+  const run = (material = text) =>
     attempt(async () => {
-      const r = await commands.ai_extract(text, images, hint || null);
-      setDrafts(r.drafts);
-      setNotes(r.notes);
-      setSelected(
-        new Set(r.drafts.filter((d) => d.ready).map((d) => d.asset.id)),
+      const r = await commands.ai_extract(
+        material,
+        images,
+        pasted,
+        hint || null,
       );
+      setPlan(r);
+      setSelected(new Set(r.items.filter((i) => i.ready).map((i) => i.key)));
     });
-  const toggle = (id: string, on: boolean) =>
+  useEffect(() => {
+    // Material handed over from the overview runs once the service is known.
+    if (
+      active &&
+      !started.current &&
+      (initialText.trim() || initialPasted.length)
+    ) {
+      started.current = true;
+      void run();
+    }
+  }, [active]);
+  const answer = (question: string, option: string) => {
+    const next = `${text.trim()}\n补充：${question} ${option}`;
+    setText(next);
+    void run(next);
+  };
+  const toggle = (key: string, on: boolean) =>
     setSelected((old) => {
       const next = new Set(old);
-      if (on) next.add(id);
-      else next.delete(id);
+      if (on) next.add(key);
+      else next.delete(key);
       return next;
     });
   const saveEdit = (a: Asset) => {
-    const missing = missingRequired(a);
-    setDrafts((old) =>
-      old.map((d) =>
-        d.asset.id === a.id
-          ? {
-              asset: a,
-              ready: missing.length === 0,
-              warnings: missing.length
-                ? [`缺少必填：${missing.join("、")}`]
-                : [],
-            }
-          : d,
-      ),
+    if (!editing) return;
+    const gaps = missingRequired(a);
+    setPlan(
+      (p) =>
+        p && {
+          ...p,
+          items: p.items.map((i) =>
+            i.key === editing.key
+              ? {
+                  ...i,
+                  asset: a,
+                  title: `${opNames[i.op]}${names[a.kind]}「${a.name}」`,
+                  ready: gaps.length === 0,
+                  warnings: gaps.length ? [`缺少必填：${gaps.join("、")}`] : [],
+                }
+              : i,
+          ),
+        },
     );
-    if (!missing.length) toggle(a.id, true);
+    if (!gaps.length) toggle(editing.key, true);
     setEditing(null);
   };
   if (settings && !active)
@@ -154,32 +177,47 @@ export default function AiImport({
         )}
       </div>
     );
-  const chosen = drafts.filter((d) => selected.has(d.asset.id) && d.ready);
+  const changes = planToChanges(items, selected);
+  const count =
+    changes.create.length + changes.update.length + changes.link.length;
+  const imageCount = images.length + pasted.length;
   return (
     <>
       <p className="muted">
-        粘贴订单、账单邮件、设备说明或聊天记录，也可以添加截图。AI
-        只生成草稿，勾选确认后才登记。将发送给
+        说一句或贴截图：新买的东西、续费变化、谁在用什么、什么不用了都可以。AI
+        只提出操作，你勾选确认后一次写入。将发送给
         {active ? ` ${active.name}（${active.model}）` : " AI 服务"}
-        ：你提供的材料，以及已有资产的 id、类型和名称。不要粘贴密码或验证码。
+        ：你的材料，以及已有资产的名称、核心字段和使用人。不要粘贴密码或验证码。
       </p>
       <label>
         材料
         <textarea
-          rows={6}
+          rows={5}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="例如：11 月 3 日在京东买了 iPad Air 11 寸 256G，给孩子上网课用，序列号 F9X…"
+          onPaste={async (e) => {
+            const got = await pastedImages(e);
+            if (got.length)
+              setPasted((old) =>
+                [...old, ...got].slice(0, MAX_IMAGES - images.length),
+              );
+          }}
+          placeholder="例如：MacBook-A 以后给孩子用，我换 M4 了；iCloud 涨到每月 25 元。截图可以直接粘贴进来。"
         />
       </label>
       <div className="ai-inputs">
         <button
           type="button"
-          disabled={working || images.length >= 4}
+          disabled={working || imageCount >= MAX_IMAGES}
           onClick={() =>
             void attempt(async () => {
               const picked = await chooseImages();
-              setImages((old) => [...new Set([...old, ...picked])].slice(0, 4));
+              setImages((old) =>
+                [...new Set([...old, ...picked])].slice(
+                  0,
+                  MAX_IMAGES - pasted.length,
+                ),
+              );
             })
           }
         >
@@ -200,7 +238,7 @@ export default function AiImport({
           </select>
         </label>
       </div>
-      {images.length > 0 && (
+      {imageCount > 0 && (
         <ul className="ai-images">
           {images.map((p) => (
             <li key={p}>
@@ -215,70 +253,111 @@ export default function AiImport({
               </button>
             </li>
           ))}
+          {pasted.map((d, i) => (
+            <li key={d.slice(-32)}>
+              <img src={d} alt={`粘贴的截图 ${i + 1}`} />
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={`移除粘贴的截图 ${i + 1}`}
+                onClick={() => setPasted(pasted.filter((x) => x !== d))}
+              >
+                <X size={14} />
+              </button>
+            </li>
+          ))}
         </ul>
       )}
       <button
         className="primary"
-        disabled={working || busy || (!text.trim() && !images.length)}
-        onClick={() => void extract()}
+        disabled={working || busy || (!text.trim() && !imageCount)}
+        onClick={() => void run()}
       >
         {working ? (
           <LoaderCircle className="spin" size={16} />
         ) : (
           <Sparkles size={16} />
         )}
-        {working ? "AI 正在识别…" : "用 AI 生成草稿"}
+        {working ? "AI 正在整理…" : plan ? "重新整理" : "交给 AI 整理"}
       </button>
-      {notes.map((n) => (
+      {plan?.notes.map((n) => (
         <p className="small" key={n}>
           {n}
         </p>
       ))}
-      {drafts.length > 0 && (
+      {plan?.questions.map((q) => (
+        <div className="ai-question" key={q.text}>
+          <strong>{q.text}</strong>
+          <div>
+            {q.options.map((o) => (
+              <button
+                key={o}
+                type="button"
+                disabled={working}
+                onClick={() => answer(q.text, o)}
+              >
+                {o}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      {items.length > 0 && (
         <RecordList
-          listKey="ai.drafts"
-          label="AI 草稿"
-          items={drafts}
-          search={(d) =>
-            `${d.asset.name} ${names[d.asset.kind]} ${summary(d.asset, lookup)}`
-          }
+          listKey="ai.plan"
+          label="AI 建议的操作"
+          items={items}
+          search={(i) => `${i.title} ${i.details.join(" ")}`}
           sortFields={[
-            { key: "kind", label: "类型", value: (d) => names[d.asset.kind] },
-            { key: "name", label: "名称", value: (d) => d.asset.name },
+            { key: "order", label: "建议顺序", value: (i) => items.indexOf(i) },
+            { key: "title", label: "名称", value: (i) => i.title },
           ]}
           dimensions={[
-            { key: "kind", label: "类型", value: (d) => names[d.asset.kind] },
+            { key: "op", label: "操作", value: (i) => opNames[i.op] },
             {
               key: "ready",
               label: "状态",
-              value: (d) => (d.ready ? "可登记" : "需补充"),
+              value: (i) => (i.ready ? "可应用" : "需补充"),
             },
           ]}
         >
           {(page) =>
-            page.map((d) => (
-              <div className="ai-draft-row" key={d.asset.id}>
-                <label>
-                  <input
-                    type="checkbox"
-                    disabled={!d.ready}
-                    checked={d.ready && selected.has(d.asset.id)}
-                    onChange={(e) => toggle(d.asset.id, e.target.checked)}
-                  />
-                  <span className="badge neutral">{names[d.asset.kind]}</span>
-                  <strong>{d.asset.name}</strong>
-                </label>
-                <small>{summary(d.asset, lookup) || "只有名称"}</small>
-                {d.warnings.map((w) => (
-                  <small className="warning-text" key={w}>
-                    {w}
-                  </small>
-                ))}
-                <button type="button" onClick={() => setEditing(d.asset)}>
-                  编辑
-                </button>
-              </div>
-            ))
+            page.map((i) => {
+              const blockers = blockedBy(i, selected, items);
+              const ok = canApply(i, selected, items);
+              return (
+                <div className={`ai-draft-row op-${i.op}`} key={i.key}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      disabled={!ok}
+                      checked={ok && selected.has(i.key)}
+                      onChange={(e) => toggle(i.key, e.target.checked)}
+                    />
+                    <span className="badge neutral">{opNames[i.op]}</span>
+                    <strong>{i.title}</strong>
+                  </label>
+                  {i.details.map((d) => (
+                    <small key={d}>{d}</small>
+                  ))}
+                  {i.warnings.map((w) => (
+                    <small className="warning-text" key={w}>
+                      {w}
+                    </small>
+                  ))}
+                  {blockers.map((b) => (
+                    <small className="warning-text" key={b.key}>
+                      需要先勾选：{b.title}
+                    </small>
+                  ))}
+                  {i.asset && i.op !== "retire" && (
+                    <button type="button" onClick={() => setEditing(i)}>
+                      编辑
+                    </button>
+                  )}
+                </div>
+              );
+            })
           }
         </RecordList>
       )}
@@ -287,33 +366,36 @@ export default function AiImport({
           {localError || error}
         </p>
       )}
-      {drafts.length > 0 && (
+      {items.length > 0 && (
         <div className="dialog-foot">
           <span>
-            已选 {chosen.length} / {drafts.length} 项（跨分页保留）
+            将应用{" "}
+            {
+              items.filter(
+                (i) => selected.has(i.key) && canApply(i, selected, items),
+              ).length
+            }{" "}
+            / {items.length} 项（跨分页保留）
           </span>
           <button
             className="primary"
-            disabled={busy || !chosen.length}
-            onClick={() =>
-              apply(
-                detachUnselected(
-                  chosen.map((d) => d.asset),
-                  drafts,
-                ),
-              )
-            }
+            disabled={busy || !count}
+            onClick={() => apply(changes)}
           >
-            登记所选 {chosen.length} 项
+            确认并写入
           </button>
         </div>
       )}
-      {editing && (
+      {editing?.asset && (
         <AssetEditor
-          asset={editing}
+          asset={editing.asset}
           assets={[
-            ...snapshot.assets,
-            ...drafts.map((d) => d.asset).filter((a) => a.id !== editing.id),
+            ...snapshot.assets.filter((a) => a.id !== editing.asset!.id),
+            ...items
+              .filter(
+                (i) => i.op === "create" && i.asset && i.key !== editing.key,
+              )
+              .map((i) => i.asset!),
           ]}
           save={saveEdit}
           close={() => setEditing(null)}
