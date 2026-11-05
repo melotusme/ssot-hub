@@ -7,23 +7,7 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(() => ({
   base: "./",
-  plugins: [
-    react(),
-    {
-      name: "ssot-offline-assets",
-      generateBundle(_options, bundle) {
-        this.emitFile({
-          type: "asset",
-          fileName: "precache.json",
-          source: JSON.stringify(
-            Object.keys(bundle)
-              .filter((name) => /\.(js|css)$/.test(name))
-              .map((name) => "./" + name),
-          ),
-        });
-      },
-    },
-  ],
+  plugins: [react()],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

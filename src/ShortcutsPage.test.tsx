@@ -10,7 +10,8 @@ import {
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
-vi.mock("./api", () => ({ desktop: true, command: invoke }));
+// Mock the Tauri bridge so the generated bindings (real argument names) are exercised.
+vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: vi.fn() }));
 import ShortcutsPage, { changedLines } from "./ShortcutsPage";
 const source = {

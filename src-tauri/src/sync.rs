@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::time::Duration;
 
-#[derive(Serialize)]
+#[derive(Serialize, specta::Type)]
 pub struct Response {
     status: u16,
     body: String,
@@ -21,6 +21,7 @@ fn validate_url(raw: &str) -> Result<reqwest::Url, String> {
     Ok(url)
 }
 #[tauri::command]
+#[specta::specta]
 pub async fn dav_request(
     url: String,
     method: String,

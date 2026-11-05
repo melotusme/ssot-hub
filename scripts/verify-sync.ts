@@ -1,6 +1,6 @@
+import { browserTransport } from "./fetch-transport.ts";
 import { empty } from "../src/model.ts";
 import {
-  browserTransport,
   encryptPayload,
   decryptPayload,
   readRemote,

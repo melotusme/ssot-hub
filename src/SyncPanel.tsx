@@ -1,15 +1,13 @@
 import { useState } from "react";
-import { command, desktop, chooseExport, chooseFile } from "./api";
+import { commands, chooseExport, chooseFile } from "./api";
 import type { Snapshot } from "./model";
 import {
-  browserTransport,
   davDirectory,
   decryptPayload,
   encryptPayload,
   readRemote,
   uploadRemote,
   type DavConfig,
-  type DavResponse,
   type SyncPayload,
   type Transport,
 } from "./sync";
@@ -42,19 +40,24 @@ export default function SyncPanel({
     source?: string;
   } | null>(null);
   const connectionKey = () => `${davDirectory(config.url)}|${config.username}`;
-  const transport = (): Transport =>
-    desktop
-      ? (url, method, body, condition) =>
-          command<DavResponse>("dav_request", {
-            url,
-            method,
-            body: body ?? null,
-            username: config.username,
-            password: config.password,
-            useVerge: config.source === "clash-verge",
-            condition: condition ? [condition.name, condition.value] : null,
-          })
-      : browserTransport(config);
+  const transport = (): Transport => (url, method, body, condition) =>
+    commands.dav_request(
+      url,
+      method,
+      config.username,
+      config.password,
+      body ?? null,
+      condition ? [condition.name, condition.value] : null,
+      config.source === "clash-verge",
+    );
+  // Decrypted content is untrusted: the backend validates it before any preview.
+  const decrypt = async (text: string): Promise<SyncPayload> => {
+    const payload = await decryptPayload(text, passphrase);
+    return {
+      ...payload,
+      snapshot: await commands.check_snapshot(payload.snapshot),
+    };
+  };
   const run = async (fn: () => Promise<void>) => {
     if (busy) return;
     setBusy(true);
@@ -82,14 +85,12 @@ export default function SyncPanel({
       JSON.stringify({
         url: config.url,
         username: config.username,
-        ...(desktop && config.source ? { source: config.source } : {}),
+        ...(config.source ? { source: config.source } : {}),
       }),
     );
   const reuseVerge = () =>
     run(async () => {
-      const profile = await command<{ url: string; username: string }>(
-        "verge_dav_profile",
-      );
+      const profile = await commands.verge_dav_profile();
       const next: DavConfig = {
         ...profile,
         password: "",
@@ -105,35 +106,21 @@ export default function SyncPanel({
         "已复用本机连接。应用密码留在后端读取，不复制或修改 Clash Verge 配置；尚未上传台账。",
       );
     });
-  const hasCredential =
-    !!config.password || (desktop && config.source === "clash-verge");
+  const hasCredential = !!config.password || config.source === "clash-verge";
   const exportEncrypted = () =>
     run(async () => {
       const content = await encryptPayload(payload(), passphrase);
-      if (desktop) {
-        const path = await chooseExport();
-        if (!path) return;
-        await command("write_encrypted", { path, content });
-      } else {
-        const url = URL.createObjectURL(
-          new Blob([content], { type: "application/json" }),
-        );
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `ssot-encrypted-${Date.now()}.json`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      }
+      const path = await chooseExport();
+      if (!path) return;
+      await commands.write_encrypted(path, content);
       setMessage("加密快照已导出；请通过私有渠道传递，口令另行保管。");
     });
   const importEncrypted = () =>
     run(async () => {
       const file = await chooseFile();
       if (!file) return;
-      const text = desktop
-        ? await command<string>("read_encrypted", { path: file })
-        : file;
-      const result = await decryptPayload(text, passphrase);
+      const text = await commands.read_encrypted(file);
+      const result = await decrypt(text);
       setPreview({ payload: result, revision: snapshot.revision });
     });
   const download = () =>
@@ -145,7 +132,7 @@ export default function SyncPanel({
         setMessage("云端尚无台账，可以首次上传。未改动本地数据。");
         return;
       }
-      const result = await decryptPayload(remote.body, passphrase);
+      const result = await decrypt(remote.body);
       setPreview({
         payload: result,
         revision: snapshot.revision,
@@ -170,10 +157,10 @@ export default function SyncPanel({
   const apply = () =>
     run(async () => {
       if (!preview) return;
-      const result = await command<Snapshot>("replace_snapshot", {
-        snapshot: preview.payload.snapshot,
-        revision: preview.revision,
-      });
+      const result = await commands.replace_snapshot(
+        preview.payload.snapshot,
+        preview.revision,
+      );
       onChange(result);
       // Preference failure must not misreport a completed data replacement as rolled back.
       try {
@@ -187,7 +174,7 @@ export default function SyncPanel({
         setMessage("已备份旧台账并应用快照。列表偏好下次进入列表时恢复。");
       } catch {
         setMessage(
-          "台账已应用并备份，但浏览器偏好存储失败；请勿直接上传，先重新核对云端。",
+          "台账已应用并备份，但列表偏好保存失败；请勿直接上传，先重新核对云端。",
         );
       }
       setPreview(null);
@@ -221,23 +208,14 @@ export default function SyncPanel({
       <details>
         <summary>配置 WebDAV / 坚果云</summary>
         <p className="small">
-          使用第三方应用密码。只保存 URL 与用户名；密码关闭页面即丢弃。Web
-          需要服务器允许 CORS；桌面没有浏览器 CORS 限制。
+          使用第三方应用密码。只保存 URL 与用户名；密码关闭窗口即丢弃。
         </p>
-        {desktop && (
-          <button disabled={busy} onClick={reuseVerge}>
-            复用本机 Clash Verge WebDAV
-          </button>
-        )}
-        {desktop && config.source === "clash-verge" && (
+        <button disabled={busy} onClick={reuseVerge}>
+          复用本机 Clash Verge WebDAV
+        </button>
+        {config.source === "clash-verge" && (
           <p role="status">
             正在复用本机加密连接；密码不返回页面。修改地址、账号或密码将切回手动连接。
-          </p>
-        )}
-        {!desktop && config.url?.includes("dav.jianguoyun.com") && (
-          <p className="small">
-            坚果云当前不允许浏览器跨域直连。请用桌面端同步，或通过坚果云客户端传递加密快照文件；本页面不会绕过
-            CORS。
           </p>
         )}
         <label>

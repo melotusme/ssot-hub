@@ -1,0 +1,2063 @@
+{
+  "kinds": [
+    {
+      "kind": "device",
+      "name": "设备",
+      "fields": [
+        {
+          "key": "device_kind",
+          "label": "设备类型",
+          "options": [
+            [
+              "computer",
+              "电脑"
+            ],
+            [
+              "phone",
+              "手机"
+            ],
+            [
+              "tablet",
+              "平板"
+            ],
+            [
+              "laptop",
+              "笔记本电脑"
+            ],
+            [
+              "mini_pc",
+              "迷你主机"
+            ],
+            [
+              "esp32",
+              "ESP32 / 开发板"
+            ],
+            [
+              "projector",
+              "投影设备 / 投影手机"
+            ],
+            [
+              "router",
+              "路由器 / 网络设备"
+            ],
+            [
+              "enclosure",
+              "硬盘盒"
+            ],
+            [
+              "nas",
+              "实体 NAS"
+            ],
+            [
+              "console",
+              "游戏主机"
+            ],
+            [
+              "cartridge",
+              "游戏卡 / 米格卡"
+            ],
+            [
+              "other",
+              "其他"
+            ]
+          ]
+        },
+        {
+          "key": "platform",
+          "label": "平台"
+        },
+        {
+          "key": "model",
+          "label": "型号"
+        },
+        {
+          "key": "owner_id",
+          "label": "所有者（产权）",
+          "ref": [
+            "person"
+          ]
+        },
+        {
+          "key": "location",
+          "label": "所在地",
+          "placeholder": "公司 / 家里 / 随身"
+        },
+        {
+          "key": "serial",
+          "label": "序列号 / 资产编号"
+        },
+        {
+          "key": "mac",
+          "label": "MAC 地址"
+        },
+        {
+          "key": "ip",
+          "label": "最近观测 IP"
+        },
+        {
+          "key": "observed_at",
+          "label": "网络观测时间"
+        },
+        {
+          "key": "evidence",
+          "label": "登记来源"
+        },
+        {
+          "key": "purchased_on",
+          "label": "购买日期",
+          "type": "date"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "environment",
+      "name": "系统环境",
+      "fields": [
+        {
+          "key": "environment_kind",
+          "label": "环境类型",
+          "options": [
+            [
+              "physical",
+              "实体机系统"
+            ],
+            [
+              "vm",
+              "虚拟机"
+            ],
+            [
+              "container",
+              "容器"
+            ]
+          ]
+        },
+        {
+          "key": "vmid",
+          "label": "虚拟机 / 容器编号"
+        },
+        {
+          "key": "runtime_state",
+          "label": "观测运行状态",
+          "options": [
+            [
+              "running",
+              "运行中"
+            ],
+            [
+              "stopped",
+              "已停止"
+            ],
+            [
+              "unknown",
+              "未核实"
+            ]
+          ]
+        },
+        {
+          "key": "os",
+          "label": "操作系统"
+        },
+        {
+          "key": "version",
+          "label": "系统版本"
+        },
+        {
+          "key": "device_id",
+          "label": "所在设备",
+          "ref": [
+            "device"
+          ]
+        },
+        {
+          "key": "host_id",
+          "label": "宿主环境（VM / 模拟器）",
+          "ref": [
+            "environment"
+          ]
+        },
+        {
+          "key": "storage_id",
+          "label": "安装硬盘",
+          "ref": [
+            "storage"
+          ]
+        },
+        {
+          "key": "partition",
+          "label": "分区 / 卷 / 启动方式"
+        },
+        {
+          "key": "mac",
+          "label": "MAC 地址"
+        },
+        {
+          "key": "ip",
+          "label": "最近观测 IP"
+        },
+        {
+          "key": "observed_at",
+          "label": "网络观测时间"
+        },
+        {
+          "key": "evidence",
+          "label": "登记来源"
+        },
+        {
+          "key": "role",
+          "label": "角色 / 用途"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "software",
+      "name": "软件安装",
+      "fields": [
+        {
+          "key": "environment_id",
+          "label": "所属系统环境 *",
+          "ref": [
+            "environment"
+          ],
+          "required": true
+        },
+        {
+          "key": "source",
+          "label": "安装来源",
+          "options": [
+            [
+              "brew",
+              "Homebrew"
+            ],
+            [
+              "git",
+              "Git 仓库"
+            ],
+            [
+              "app",
+              "桌面 App"
+            ],
+            [
+              "other",
+              "其他包管理器"
+            ]
+          ]
+        },
+        {
+          "key": "manager",
+          "label": "管理器"
+        },
+        {
+          "key": "package_kind",
+          "label": "包类型"
+        },
+        {
+          "key": "version",
+          "label": "版本"
+        },
+        {
+          "key": "commit",
+          "label": "Git commit"
+        },
+        {
+          "key": "branch",
+          "label": "Git 分支"
+        },
+        {
+          "key": "path",
+          "label": "安装路径 / 包标识"
+        },
+        {
+          "key": "repository",
+          "label": "仓库地址"
+        },
+        {
+          "key": "subscription_id",
+          "label": "订阅 / 许可",
+          "ref": [
+            "subscription"
+          ]
+        },
+        {
+          "key": "config_id",
+          "label": "配置来源",
+          "ref": [
+            "config"
+          ]
+        },
+        {
+          "key": "license_ref",
+          "label": "许可证保险库引用"
+        },
+        {
+          "key": "enabled_state",
+          "label": "启用 / 自启配置",
+          "options": [
+            [
+              "enabled",
+              "开启"
+            ],
+            [
+              "disabled",
+              "关闭"
+            ],
+            [
+              "unknown",
+              "未核实"
+            ]
+          ]
+        },
+        {
+          "key": "runtime_state",
+          "label": "观测运行状态",
+          "options": [
+            [
+              "running",
+              "运行中"
+            ],
+            [
+              "stopped",
+              "已停止"
+            ],
+            [
+              "unknown",
+              "未核实"
+            ]
+          ]
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "config",
+      "name": "配置来源",
+      "fields": [
+        {
+          "key": "authority",
+          "label": "权威类型",
+          "options": [
+            [
+              "git",
+              "Git"
+            ],
+            [
+              "dav",
+              "WebDAV"
+            ],
+            [
+              "vendor",
+              "厂商云"
+            ],
+            [
+              "local",
+              "本机"
+            ]
+          ]
+        },
+        {
+          "key": "authority_ref",
+          "label": "权威位置",
+          "placeholder": "仓库 / DAV / 厂商位置，不含凭据"
+        },
+        {
+          "key": "forbidden_sync",
+          "label": "禁止同步项",
+          "type": "textarea"
+        },
+        {
+          "key": "secret_ref",
+          "label": "保险库引用",
+          "placeholder": "op://Personal/条目/字段"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "account",
+      "name": "身份账号",
+      "fields": [
+        {
+          "key": "provider",
+          "label": "服务商"
+        },
+        {
+          "key": "owner_id",
+          "label": "账号归属成员",
+          "ref": [
+            "person"
+          ]
+        },
+        {
+          "key": "login_hint",
+          "label": "登录标识"
+        },
+        {
+          "key": "email",
+          "label": "邮箱"
+        },
+        {
+          "key": "tags",
+          "label": "标签"
+        },
+        {
+          "key": "purpose",
+          "label": "用途"
+        },
+        {
+          "key": "secret_ref",
+          "label": "保险库引用",
+          "placeholder": "op://Personal/条目/字段"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "phone",
+      "name": "手机号码",
+      "fields": [
+        {
+          "key": "number",
+          "label": "号码",
+          "placeholder": "+86…"
+        },
+        {
+          "key": "carrier",
+          "label": "运营商"
+        },
+        {
+          "key": "country",
+          "label": "国家 / 地区"
+        },
+        {
+          "key": "owner",
+          "label": "归属"
+        },
+        {
+          "key": "purpose",
+          "label": "用途"
+        },
+        {
+          "key": "expires_on",
+          "label": "到期日期",
+          "type": "date"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "esim",
+      "name": "eSIM 套餐",
+      "fields": [
+        {
+          "key": "carrier",
+          "label": "供应商"
+        },
+        {
+          "key": "channel",
+          "label": "购买渠道"
+        },
+        {
+          "key": "plan",
+          "label": "套餐"
+        },
+        {
+          "key": "country",
+          "label": "国家 / 地区"
+        },
+        {
+          "key": "expires_on",
+          "label": "到期日期",
+          "type": "date"
+        },
+        {
+          "key": "device_id",
+          "label": "安装设备",
+          "ref": [
+            "device"
+          ]
+        },
+        {
+          "key": "account_id",
+          "label": "供应商账号",
+          "ref": [
+            "account"
+          ]
+        },
+        {
+          "key": "phone_id",
+          "label": "关联号码（可空）",
+          "ref": [
+            "phone"
+          ]
+        },
+        {
+          "key": "secret_ref",
+          "label": "保险库引用",
+          "placeholder": "op://Personal/条目/字段"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "subscription",
+      "name": "订阅与许可",
+      "fields": [
+        {
+          "key": "category",
+          "label": "订阅类别",
+          "options": [
+            [
+              "software",
+              "软件"
+            ],
+            [
+              "ai",
+              "AI / Claude / Grok"
+            ],
+            [
+              "proxy",
+              "科学上网"
+            ],
+            [
+              "hosting",
+              "服务器"
+            ],
+            [
+              "cloud_storage",
+              "网盘 / 云存储"
+            ],
+            [
+              "other",
+              "其他"
+            ]
+          ]
+        },
+        {
+          "key": "provider",
+          "label": "服务商"
+        },
+        {
+          "key": "owner_id",
+          "label": "付费 / 管理成员",
+          "ref": [
+            "person"
+          ]
+        },
+        {
+          "key": "account_id",
+          "label": "权益持有账号",
+          "ref": [
+            "account"
+          ]
+        },
+        {
+          "key": "channel",
+          "label": "购买渠道"
+        },
+        {
+          "key": "price",
+          "label": "原币价格",
+          "placeholder": "9.99"
+        },
+        {
+          "key": "currency",
+          "label": "原币币种",
+          "placeholder": "USD"
+        },
+        {
+          "key": "billing_period",
+          "label": "计费周期",
+          "options": [
+            [
+              "month",
+              "每月"
+            ],
+            [
+              "year",
+              "每年"
+            ],
+            [
+              "once",
+              "一次性"
+            ]
+          ]
+        },
+        {
+          "key": "expires_on",
+          "label": "到期日期",
+          "type": "date"
+        },
+        {
+          "key": "auto_renew",
+          "label": "自动续费",
+          "options": [
+            [
+              "yes",
+              "开启"
+            ],
+            [
+              "no",
+              "关闭"
+            ]
+          ]
+        },
+        {
+          "key": "exchange_rate",
+          "label": "汇率（1 原币 = 本币）",
+          "placeholder": "7.20"
+        },
+        {
+          "key": "base_currency",
+          "label": "本币币种",
+          "placeholder": "CNY"
+        },
+        {
+          "key": "rate_date",
+          "label": "汇率日期",
+          "type": "date"
+        },
+        {
+          "key": "secret_ref",
+          "label": "保险库引用",
+          "placeholder": "op://Personal/条目/字段"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "person",
+      "name": "家庭成员与组织",
+      "fields": [
+        {
+          "key": "person_kind",
+          "label": "成员类型",
+          "options": [
+            [
+              "self",
+              "自己"
+            ],
+            [
+              "family",
+              "家人"
+            ],
+            [
+              "child",
+              "孩子"
+            ],
+            [
+              "organization",
+              "公司 / 组织"
+            ]
+          ]
+        },
+        {
+          "key": "relationship",
+          "label": "家庭称谓 / 组织说明"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "storage",
+      "name": "硬盘与存储",
+      "fields": [
+        {
+          "key": "storage_kind",
+          "label": "介质类型",
+          "options": [
+            [
+              "ssd",
+              "固态硬盘"
+            ],
+            [
+              "hdd",
+              "机械硬盘"
+            ],
+            [
+              "usb",
+              "U 盘"
+            ],
+            [
+              "sd",
+              "存储卡"
+            ]
+          ]
+        },
+        {
+          "key": "model",
+          "label": "型号"
+        },
+        {
+          "key": "serial",
+          "label": "序列号"
+        },
+        {
+          "key": "capacity",
+          "label": "容量"
+        },
+        {
+          "key": "interface",
+          "label": "接口"
+        },
+        {
+          "key": "device_id",
+          "label": "安装设备 / 硬盘盒",
+          "ref": [
+            "device"
+          ]
+        },
+        {
+          "key": "owner_id",
+          "label": "所有者（产权）",
+          "ref": [
+            "person"
+          ]
+        },
+        {
+          "key": "location",
+          "label": "所在地"
+        },
+        {
+          "key": "health",
+          "label": "健康状况 / 检测日期"
+        },
+        {
+          "key": "backup_ref",
+          "label": "备份位置（无凭据）"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "domain",
+      "name": "域名",
+      "fields": [
+        {
+          "key": "hostname",
+          "label": "域名",
+          "placeholder": "example.com"
+        },
+        {
+          "key": "registrar",
+          "label": "注册商"
+        },
+        {
+          "key": "account_id",
+          "label": "注册账号",
+          "ref": [
+            "account"
+          ]
+        },
+        {
+          "key": "server_id",
+          "label": "指向服务器",
+          "ref": [
+            "server"
+          ]
+        },
+        {
+          "key": "subscription_id",
+          "label": "续费记录",
+          "ref": [
+            "subscription"
+          ]
+        },
+        {
+          "key": "dns_provider",
+          "label": "DNS 托管商"
+        },
+        {
+          "key": "expires_on",
+          "label": "到期日期",
+          "type": "date"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "server",
+      "name": "服务器 / VPS",
+      "fields": [
+        {
+          "key": "provider",
+          "label": "服务商"
+        },
+        {
+          "key": "region",
+          "label": "地域"
+        },
+        {
+          "key": "ip",
+          "label": "IP / 主机名"
+        },
+        {
+          "key": "spec",
+          "label": "CPU / 内存 / 存储"
+        },
+        {
+          "key": "os",
+          "label": "操作系统"
+        },
+        {
+          "key": "account_id",
+          "label": "购买账号",
+          "ref": [
+            "account"
+          ]
+        },
+        {
+          "key": "subscription_id",
+          "label": "续费订阅",
+          "ref": [
+            "subscription"
+          ]
+        },
+        {
+          "key": "owner_id",
+          "label": "所有者",
+          "ref": [
+            "person"
+          ]
+        },
+        {
+          "key": "expires_on",
+          "label": "到期日期",
+          "type": "date"
+        },
+        {
+          "key": "secret_ref",
+          "label": "保险库引用",
+          "placeholder": "op://Personal/条目/字段"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "agent",
+      "name": "个人 Agent",
+      "fields": [
+        {
+          "key": "provider",
+          "label": "服务 / 框架"
+        },
+        {
+          "key": "environment_id",
+          "label": "部署环境",
+          "ref": [
+            "environment"
+          ]
+        },
+        {
+          "key": "server_id",
+          "label": "部署服务器",
+          "ref": [
+            "server"
+          ]
+        },
+        {
+          "key": "account_id",
+          "label": "运行账号",
+          "ref": [
+            "account"
+          ]
+        },
+        {
+          "key": "subscription_id",
+          "label": "使用订阅",
+          "ref": [
+            "subscription"
+          ]
+        },
+        {
+          "key": "config_id",
+          "label": "配置来源",
+          "ref": [
+            "config"
+          ]
+        },
+        {
+          "key": "endpoint",
+          "label": "访问入口（无密钥）"
+        },
+        {
+          "key": "purpose",
+          "label": "用途"
+        },
+        {
+          "key": "secret_ref",
+          "label": "保险库引用",
+          "placeholder": "op://Personal/条目/字段"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "course",
+      "name": "孩子的班课",
+      "fields": [
+        {
+          "key": "person_id",
+          "label": "上课孩子 *",
+          "ref": [
+            "person"
+          ],
+          "required": true
+        },
+        {
+          "key": "institution",
+          "label": "机构"
+        },
+        {
+          "key": "subject",
+          "label": "科目 / 班级"
+        },
+        {
+          "key": "teacher",
+          "label": "老师"
+        },
+        {
+          "key": "schedule",
+          "label": "排课时间"
+        },
+        {
+          "key": "location",
+          "label": "上课地点"
+        },
+        {
+          "key": "starts_on",
+          "label": "开始日期",
+          "type": "date"
+        },
+        {
+          "key": "expires_on",
+          "label": "到期日期",
+          "type": "date"
+        },
+        {
+          "key": "lessons_total",
+          "label": "购买课时"
+        },
+        {
+          "key": "lessons_used",
+          "label": "已用课时"
+        },
+        {
+          "key": "price",
+          "label": "报名费用"
+        },
+        {
+          "key": "currency",
+          "label": "币种",
+          "placeholder": "CNY"
+        },
+        {
+          "key": "account_id",
+          "label": "报名账号",
+          "ref": [
+            "account"
+          ]
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "assignment",
+      "name": "使用与交接",
+      "fields": [
+        {
+          "key": "asset_id",
+          "label": "使用资产 *",
+          "ref": [
+            "device",
+            "storage",
+            "server"
+          ],
+          "required": true
+        },
+        {
+          "key": "person_id",
+          "label": "使用成员 *",
+          "ref": [
+            "person"
+          ],
+          "required": true
+        },
+        {
+          "key": "usage_role",
+          "label": "使用角色 *",
+          "options": [
+            [
+              "primary",
+              "主力"
+            ],
+            [
+              "backup",
+              "备用"
+            ],
+            [
+              "shared",
+              "共用"
+            ],
+            [
+              "loan",
+              "借用"
+            ]
+          ],
+          "required": true
+        },
+        {
+          "key": "starts_on",
+          "label": "开始日期 *",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "ends_on",
+          "label": "结束日期（不含当日，空为持续使用）",
+          "type": "date"
+        },
+        {
+          "key": "location",
+          "label": "使用地点"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "resource",
+      "name": "资源目录",
+      "fields": [
+        {
+          "key": "resource_kind",
+          "label": "资源类别",
+          "options": [
+            [
+              "game",
+              "游戏 / 游戏集合"
+            ],
+            [
+              "media",
+              "影音"
+            ],
+            [
+              "archive",
+              "安装包 / 镜像"
+            ],
+            [
+              "document",
+              "文档"
+            ],
+            [
+              "other",
+              "其他"
+            ]
+          ]
+        },
+        {
+          "key": "platform",
+          "label": "适用平台"
+        },
+        {
+          "key": "distribution",
+          "label": "使用方式 / 格式",
+          "options": [
+            [
+              "mig",
+              "米格卡资源"
+            ],
+            [
+              "atmosphere",
+              "大气层安装资源"
+            ],
+            [
+              "standard",
+              "常规文件"
+            ],
+            [
+              "other",
+              "其他"
+            ]
+          ]
+        },
+        {
+          "key": "version",
+          "label": "版本 / 批次"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "copy",
+      "name": "资源副本与位置",
+      "fields": [
+        {
+          "key": "resource_id",
+          "label": "对应资源 *",
+          "ref": [
+            "resource"
+          ],
+          "required": true
+        },
+        {
+          "key": "holder_id",
+          "label": "存放载体 / NAS / 网盘账号 *",
+          "ref": [
+            "storage",
+            "device",
+            "account"
+          ],
+          "required": true
+        },
+        {
+          "key": "path",
+          "label": "目录 / 卷 / 云端位置（不含凭据）"
+        },
+        {
+          "key": "copy_role",
+          "label": "副本用途",
+          "options": [
+            [
+              "source",
+              "来源文件"
+            ],
+            [
+              "backup",
+              "备份副本"
+            ],
+            [
+              "installed",
+              "已安装内容"
+            ],
+            [
+              "archive",
+              "归档"
+            ]
+          ]
+        },
+        {
+          "key": "environment_id",
+          "label": "使用 / 安装环境",
+          "ref": [
+            "environment"
+          ]
+        },
+        {
+          "key": "content_state",
+          "label": "内容核实状态",
+          "options": [
+            [
+              "present",
+              "已核实存在"
+            ],
+            [
+              "missing",
+              "已核实缺失"
+            ],
+            [
+              "unknown",
+              "尚未核实"
+            ]
+          ]
+        },
+        {
+          "key": "checksum",
+          "label": "校验值（可空）"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "network",
+      "name": "网络与穿透",
+      "fields": [
+        {
+          "key": "technology",
+          "label": "网络技术",
+          "options": [
+            [
+              "zerotier",
+              "ZeroTier"
+            ],
+            [
+              "tailscale",
+              "Tailscale"
+            ],
+            [
+              "frp",
+              "FRP"
+            ],
+            [
+              "cloudflare",
+              "Cloudflare Tunnel"
+            ],
+            [
+              "lan",
+              "局域网"
+            ],
+            [
+              "other",
+              "其他"
+            ]
+          ]
+        },
+        {
+          "key": "network_code",
+          "label": "网络标识（非密钥）"
+        },
+        {
+          "key": "network_range",
+          "label": "网段"
+        },
+        {
+          "key": "account_id",
+          "label": "管理账号",
+          "ref": [
+            "account"
+          ]
+        },
+        {
+          "key": "config_id",
+          "label": "配置来源",
+          "ref": [
+            "config"
+          ]
+        },
+        {
+          "key": "subscription_id",
+          "label": "相关订阅",
+          "ref": [
+            "subscription"
+          ]
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "kind": "connection",
+      "name": "节点接入",
+      "fields": [
+        {
+          "key": "network_id",
+          "label": "所属网络 *",
+          "ref": [
+            "network"
+          ],
+          "required": true
+        },
+        {
+          "key": "node_id",
+          "label": "实际接入节点 *",
+          "ref": [
+            "device",
+            "environment"
+          ],
+          "required": true
+        },
+        {
+          "key": "software_id",
+          "label": "使用的软件安装",
+          "ref": [
+            "software"
+          ]
+        },
+        {
+          "key": "enabled_state",
+          "label": "启用配置",
+          "options": [
+            [
+              "enabled",
+              "开启"
+            ],
+            [
+              "disabled",
+              "关闭"
+            ],
+            [
+              "unknown",
+              "未核实"
+            ]
+          ]
+        },
+        {
+          "key": "node_address",
+          "label": "节点地址 / 虚拟 IP"
+        },
+        {
+          "key": "advertised_routes",
+          "label": "发布路由 / 内网网段"
+        },
+        {
+          "key": "endpoint",
+          "label": "访问入口（不含密钥）"
+        },
+        {
+          "key": "probe_state",
+          "label": "实际连通性",
+          "options": [
+            [
+              "reachable",
+              "已测试可达"
+            ],
+            [
+              "unreachable",
+              "已测试不可达"
+            ],
+            [
+              "untested",
+              "未测试"
+            ]
+          ]
+        },
+        {
+          "key": "probe_at",
+          "label": "连通性测试时间（ISO 8601）"
+        },
+        {
+          "key": "verification",
+          "label": "资料依据",
+          "options": [
+            [
+              "observed",
+              "机器观测"
+            ],
+            [
+              "reported",
+              "用户描述"
+            ],
+            [
+              "confirmed",
+              "人工确认"
+            ],
+            [
+              "unknown",
+              "待核对"
+            ]
+          ]
+        },
+        {
+          "key": "evidence",
+          "label": "证据 / 登记来源"
+        },
+        {
+          "key": "observed_at",
+          "label": "资料观测时间（ISO 8601）"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea"
+        }
+      ]
+    }
+  ],
+  "verification": [
+    [
+      "observed",
+      "机器观测"
+    ],
+    [
+      "reported",
+      "用户描述"
+    ],
+    [
+      "confirmed",
+      "人工确认"
+    ],
+    [
+      "unknown",
+      "待核对"
+    ]
+  ]
+}

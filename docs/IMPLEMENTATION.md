@@ -2,6 +2,8 @@
 
 > 2026-11-01 更新：桌面 SQLite 写入口保持不变；Web/PWA 新增 IndexedDB 事务入口，已不再是预览。Snapshot v2 兼容 v1 读取，新增成员、使用记录、存储、域名、VPS、Agent、课程。当前模型见 GLOSSARY.md，当前同步见 SYNC-CONTRACT.md。下文保留原桌面实现说明。
 
+> 2026-11-05：Web/PWA 端已移除，只在桌面编辑；字段定义见 `src-tauri/src/schema.rs`，前端调用类型见 `src/bindings.ts`（由 tauri-specta 生成）。下文"浏览器预览"等描述已过时。
+
 技术栈：Tauri 2 + React + TypeScript + Rust + SQLite。使用官方 create-tauri-app 初始化。
 
 ## 数据与边界

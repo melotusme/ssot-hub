@@ -13,7 +13,7 @@ pub struct Connection {
     pub username: String,
     pub password: String,
 }
-#[derive(Serialize)]
+#[derive(Serialize, specta::Type)]
 pub struct Profile {
     pub url: String,
     pub username: String,
@@ -112,6 +112,7 @@ pub fn authorize(
     Ok(())
 }
 #[tauri::command]
+#[specta::specta]
 pub fn verge_dav_profile() -> Result<Profile, String> {
     let connection = load()?;
     Ok(Profile {

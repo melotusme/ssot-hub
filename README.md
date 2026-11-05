@@ -1,6 +1,6 @@
 # SSOT Hub
 
-个人与家庭资产台账。Tauri 2 桌面版（Rust + SQLite）与 Web/PWA（React + IndexedDB）共用界面和 Snapshot v2；保留旧版数据与快捷键源码编辑。
+个人与家庭资产台账。Tauri 2 桌面应用（Rust + SQLite + React 界面），保留旧版数据与快捷键源码编辑。自 2026-11-05 起只在桌面编辑：字段、校验和业务规则只在 Rust 实现一份，Web/PWA 版已移除。
 
 ## 0.2 家庭资产
 
@@ -16,13 +16,13 @@
 
 ## 多端与加密同步
 
-Web 不再是预览：使用 IndexedDB 事务持久化，支持登记、交接、备份恢复和加密同步。桌面仍用原系统应用目录和 SQLite，不自动移动或覆盖原数据库。v1 快照向前兼容，写入 v2 后不要用旧客户端编辑。
+桌面用系统应用目录里的 SQLite，不自动移动或覆盖原数据库。v1 / v2 快照向前兼容，写入 v3 后不要用旧客户端编辑。字段定义在 `src-tauri/src/schema.rs`，界面启动时通过 `schema` 命令取回；前端调用类型 `src/bindings.ts` 由 tauri-specta 从 Rust 命令生成。
 
 「数据与备份」支持加密文件交接、手动 WebDAV 上传 / 下载、下载预览、冲突检测、远端写前备份及写后回读、本地恢复点。AES-256-GCM + PBKDF2 口令至少 12 字符，口令和 WebDAV 应用密码仅在内存。丢失口令不能找回。连接 URL / 用户名留本机；列表分页与排序可同步；快捷键源码和文件选择路径不随快照同步。
 
-WebDAV 需要 HTTPS；浏览器端另需服务器允许 CORS。0.2.1 新增桌面「复用本机 Clash Verge WebDAV」，后端只读解密原客户端连接，密码不返回页面，调用绑定原账号 / 站点 / SSOT-Hub 目录。已有坚果云连接已用临时测试文件验证真实加密读写，正式台账未自动上传。坚果云当前不允许浏览器直连，请用桌面端或加密文件。一次只在一端编辑，不自动合并并发分叉；服务端不执行条件头时无法保证原子多写者安全。详见 [同步契约](docs/SYNC-CONTRACT.md)。
+WebDAV 需要 HTTPS，请求由 Rust 后端发出。0.2.1 新增「复用本机 Clash Verge WebDAV」，后端只读解密原客户端连接，密码不返回页面，调用绑定原账号 / 站点 / SSOT-Hub 目录。已有坚果云连接已用临时测试文件验证真实加密读写，正式台账未自动上传。一次只在一端编辑，不自动合并并发分叉；服务端不执行条件头时无法保证原子多写者安全。详见 [同步契约](docs/SYNC-CONTRACT.md)。
 
-Windows / macOS 有 Tauri 构建流水线；Web 构建产物为 `dist/`。Android / iOS 当前采用响应式 Web/PWA（HTTPS 打开、添加到主屏幕），**不等于已交付 APK / IPA 或商店版本**。移动端原生签名、真机验收和实际私有 Web 托管仍需后续配置。浏览器清除网站数据会删除 IndexedDB 和本地恢复点，请保存加密导出。
+Windows / macOS 有 Tauri 构建流水线。不提供手机端；以后可能增加"导出只读页面"供手机查看（见 [重构设计](docs/REDESIGN.md)）。
 
 ## 开发与构建
 
@@ -42,7 +42,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 bun run tauri build --bundles app
 ```
 
-`bun run dev` 启动完整 Web 台账；`bun run tauri dev` 启动桌面版。浏览器与桌面各自持久化，通过显式同步交接。软件扫描和快捷键源码编辑仅在桌面可用。
+`bun run tauri dev` 启动桌面版。`bun run dev` 只启动前端开发服务器，单独在浏览器打开会提示只能在桌面运行。改了 Rust 命令或 schema 后运行 `UPDATE_BINDINGS=1 UPDATE_SCHEMA=1 cargo test`（或 `sh scripts/cargo-isolated.sh test`）刷新 `src/bindings.ts` 与 `src-tauri/tests/fixtures/schema.json`，CI 会检查它们是否最新。
 
 ## 当前能力
 
@@ -58,7 +58,7 @@ bun run tauri build --bundles app
 
 ## 应用快捷键：代码为唯一 SSOT
 
-侧栏「应用快捷键」直接读取 Hammerspoon Lua 或 AutoHotkey v2 源码；快捷键不写入 SQLite，也不另存 JSON 配置。localStorage 记录上次文件路径、列表偏好，以及不含密码的同步连接信息；资产本身存于 SQLite / IndexedDB。
+侧栏「应用快捷键」直接读取 Hammerspoon Lua 或 AutoHotkey v2 源码；快捷键不写入 SQLite，也不另存 JSON 配置。localStorage 记录上次文件路径、列表偏好，以及不含密码的同步连接信息；资产本身存于 SQLite。
 
 - macOS 默认读取 `~/.hammerspoon/hotkeys.lua` 的 `app_shortcuts` 与 `default_mods` 字面量表；支持新增到已有分类、修改按键和选择 `.app`。
 - 现有 Codex Cockpit、Chrome profile 等高级启动字段与函数原样保留。包含高级字段的条目只允许改快捷键；启动参数继续在源码维护。

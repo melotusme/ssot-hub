@@ -9,7 +9,7 @@ concurrency:
   group: verify-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  web:
+  frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,13 +22,6 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run test
       - run: bun run build
-      - name: Package Web/PWA
-        run: cd dist && zip -r ../SSOT.Hub.web.zip .
-      - uses: actions/upload-artifact@v4
-        with:
-          name: SSOT-Hub-Web
-          path: SSOT.Hub.web.zip
-          if-no-files-found: error
   desktop:
     strategy:
       fail-fast: false

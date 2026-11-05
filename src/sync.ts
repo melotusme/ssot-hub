@@ -1,5 +1,4 @@
 import { uid, type Snapshot } from "./model";
-import { validateSnapshot } from "./validation";
 export interface SyncPayload {
   snapshot: Snapshot;
   preferences: Record<string, string>;
@@ -68,7 +67,6 @@ export async function encryptPayload(
   payload: SyncPayload,
   passphrase: string,
 ): Promise<string> {
-  validateSnapshot(payload.snapshot);
   validatePreferences(payload.preferences);
   const salt = crypto.getRandomValues(new Uint8Array(16)),
     iv = crypto.getRandomValues(new Uint8Array(12));
@@ -112,7 +110,6 @@ export async function decryptPayload(
     throw Error("解密失败：口令不正确或文件被篡改，本地数据未更改");
   }
   const payload = JSON.parse(new TextDecoder().decode(raw)) as SyncPayload;
-  validateSnapshot(payload.snapshot);
   validatePreferences(payload.preferences);
   return payload;
 }
@@ -200,57 +197,4 @@ export async function uploadRemote(
   if (!verify || verify.hash !== (await fingerprint(text)))
     throw Error("上传后回读不一致，可能有并发修改；请保留本地数据并核对云端");
   return verify.hash;
-}
-export function browserTransport(config: DavConfig): Transport {
-  const authorization =
-    "Basic " +
-    encode(new TextEncoder().encode(config.username + ":" + config.password));
-  return async (url, method, body, condition) => {
-    try {
-      const r = await fetch(url, {
-        method,
-        body,
-        redirect: "error",
-        credentials: "omit",
-        cache: "no-store",
-        signal: AbortSignal.timeout(30000),
-        headers: {
-          Authorization: authorization,
-          ...(body ? { "Content-Type": "application/json" } : {}),
-          ...(condition ? { [condition.name]: condition.value } : {}),
-        },
-      });
-      if (Number(r.headers.get("Content-Length")) > maxBytes)
-        throw Error("云端文件超过 20 MB");
-      const reader = r.body?.getReader();
-      const chunks: Uint8Array[] = [];
-      let size = 0;
-      if (reader)
-        while (true) {
-          const part = await reader.read();
-          if (part.done) break;
-          size += part.value.length;
-          if (size > maxBytes) {
-            await reader.cancel();
-            throw Error("云端文件超过 20 MB");
-          }
-          chunks.push(part.value);
-        }
-      const bytes = new Uint8Array(size);
-      let offset = 0;
-      for (const c of chunks) {
-        bytes.set(c, offset);
-        offset += c.length;
-      }
-      return {
-        status: r.status,
-        body: new TextDecoder().decode(bytes),
-        etag: r.headers.get("ETag"),
-      };
-    } catch {
-      throw Error(
-        "WebDAV 请求失败：请检查 HTTPS、网络与 CORS；可改用桌面端或加密文件交接",
-      );
-    }
-  };
 }

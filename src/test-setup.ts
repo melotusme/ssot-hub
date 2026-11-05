@@ -27,3 +27,8 @@ if (typeof window !== "undefined") {
     value: storage(),
   });
 }
+
+// Frontend tests use the schema the Rust backend serves (kept current by a cargo test).
+import { installSchema, type Schema } from "./model";
+import schema from "../src-tauri/tests/fixtures/schema.json";
+installSchema(schema as unknown as Schema);

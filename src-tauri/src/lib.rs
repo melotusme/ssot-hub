@@ -1,5 +1,6 @@
 mod dav_connection;
 mod importers;
+mod schema;
 mod shortcuts;
 mod store;
 mod sync;
@@ -14,14 +15,29 @@ fn connect(state: &AppState) -> Result<rusqlite::Connection> {
     store::open(&state.path.lock().map_err(|e| e.to_string())?)
 }
 #[tauri::command]
+#[specta::specta]
+fn schema() -> schema::Schema {
+    schema::schema().clone()
+}
+/// Validate a decrypted or file snapshot before the UI previews it.
+#[tauri::command]
+#[specta::specta]
+fn check_snapshot(snapshot: Snapshot) -> Result<Snapshot> {
+    store::validate(&snapshot)?;
+    Ok(snapshot)
+}
+#[tauri::command]
+#[specta::specta]
 fn load(state: tauri::State<AppState>) -> Result<Snapshot> {
     store::read(&connect(&state)?)
 }
 #[tauri::command]
+#[specta::specta]
 fn save_asset(state: tauri::State<AppState>, asset: Asset, revision: u64) -> Result<Snapshot> {
     store::save_asset(&mut connect(&state)?, asset, revision)
 }
 #[tauri::command]
+#[specta::specta]
 fn transfer_asset(
     state: tauri::State<AppState>,
     id: String,
@@ -31,18 +47,22 @@ fn transfer_asset(
     store::transfer(&mut connect(&state)?, &id, next, revision)
 }
 #[tauri::command]
+#[specta::specta]
 fn save_link(state: tauri::State<AppState>, link: Link, revision: u64) -> Result<Snapshot> {
     store::save_link(&mut connect(&state)?, link, revision)
 }
 #[tauri::command]
+#[specta::specta]
 fn remove_link(state: tauri::State<AppState>, id: String, revision: u64) -> Result<Snapshot> {
     store::remove_link(&mut connect(&state)?, &id, revision)
 }
 #[tauri::command]
+#[specta::specta]
 fn delete_plan(state: tauri::State<AppState>, id: String) -> Result<DeletePlan> {
     store::plan(&store::read(&connect(&state)?)?, &id)
 }
 #[tauri::command]
+#[specta::specta]
 fn delete_asset(
     app: tauri::AppHandle,
     state: tauri::State<AppState>,
@@ -60,6 +80,7 @@ fn delete_asset(
     )
 }
 #[tauri::command]
+#[specta::specta]
 fn backup(app: tauri::AppHandle, state: tauri::State<AppState>) -> Result<String> {
     Ok(store::backup(
         &store::read(&connect(&state)?)?,
@@ -72,6 +93,7 @@ fn backup(app: tauri::AppHandle, state: tauri::State<AppState>) -> Result<String
     .into_owned())
 }
 #[tauri::command]
+#[specta::specta]
 fn list_backups(app: tauri::AppHandle) -> Result<Vec<serde_json::Value>> {
     let dir = app
         .path()
@@ -102,6 +124,7 @@ fn list_backups(app: tauri::AppHandle) -> Result<Vec<serde_json::Value>> {
     Ok(out)
 }
 #[tauri::command]
+#[specta::specta]
 fn read_backup(app: tauri::AppHandle, id: String) -> Result<Snapshot> {
     if !id.starts_with("ssot-")
         || !id.ends_with(".json")
@@ -127,6 +150,7 @@ fn read_backup(app: tauri::AppHandle, id: String) -> Result<Snapshot> {
     preview_snapshot(path.to_string_lossy().to_string())
 }
 #[tauri::command]
+#[specta::specta]
 fn export_snapshot(state: tauri::State<AppState>, path: String) -> Result<()> {
     let s = store::read(&connect(&state)?)?;
     store::private_write(
@@ -135,6 +159,7 @@ fn export_snapshot(state: tauri::State<AppState>, path: String) -> Result<()> {
     )
 }
 #[tauri::command]
+#[specta::specta]
 fn preview_snapshot(path: String) -> Result<Snapshot> {
     let s: Snapshot =
         serde_json::from_str(&std::fs::read_to_string(path).map_err(|e| e.to_string())?)
@@ -143,6 +168,7 @@ fn preview_snapshot(path: String) -> Result<Snapshot> {
     Ok(s)
 }
 #[tauri::command]
+#[specta::specta]
 fn restore_snapshot(
     state: tauri::State<AppState>,
     snapshot: Snapshot,
@@ -151,6 +177,7 @@ fn restore_snapshot(
     store::import_snapshot(&mut connect(&state)?, snapshot, revision)
 }
 #[tauri::command]
+#[specta::specta]
 fn replace_snapshot(
     app: tauri::AppHandle,
     state: tauri::State<AppState>,
@@ -168,6 +195,7 @@ fn replace_snapshot(
     )
 }
 #[tauri::command]
+#[specta::specta]
 fn write_encrypted(path: String, content: String) -> Result<()> {
     if content.len() > 20 * 1024 * 1024 {
         return Err("载荷过大".into());
@@ -179,6 +207,7 @@ fn write_encrypted(path: String, content: String) -> Result<()> {
     store::private_write(&PathBuf::from(path), content.as_bytes())
 }
 #[tauri::command]
+#[specta::specta]
 fn read_encrypted(path: String) -> Result<String> {
     if std::fs::metadata(&path).map_err(|_| "无法读取文件")?.len() > 20 * 1024 * 1024 {
         return Err("文件过大".into());
@@ -186,6 +215,7 @@ fn read_encrypted(path: String) -> Result<String> {
     std::fs::read_to_string(path).map_err(|_| "无法读取加密快照".into())
 }
 #[tauri::command]
+#[specta::specta]
 fn new_workspace(app: tauri::AppHandle, state: tauri::State<AppState>) -> Result<Snapshot> {
     let mut p = state.path.lock().map_err(|e| e.to_string())?;
     let existing = store::read(&store::open(&p)?)?;
@@ -204,6 +234,7 @@ fn new_workspace(app: tauri::AppHandle, state: tauri::State<AppState>) -> Result
     Ok(s)
 }
 #[tauri::command]
+#[specta::specta]
 fn data_path(state: tauri::State<AppState>) -> Result<String> {
     Ok(state
         .path
@@ -213,6 +244,7 @@ fn data_path(state: tauri::State<AppState>) -> Result<String> {
         .into_owned())
 }
 #[tauri::command]
+#[specta::specta]
 async fn preview_brew(
     state: tauri::State<'_, AppState>,
     path: String,
@@ -227,6 +259,7 @@ async fn preview_brew(
     Ok(assets)
 }
 #[tauri::command]
+#[specta::specta]
 async fn preview_git(
     state: tauri::State<'_, AppState>,
     path: String,
@@ -243,6 +276,7 @@ async fn preview_git(
     Ok(assets)
 }
 #[tauri::command]
+#[specta::specta]
 fn apply_import(
     state: tauri::State<AppState>,
     assets: Vec<Asset>,
@@ -251,6 +285,7 @@ fn apply_import(
     store::apply_batch(&mut connect(&state)?, assets, revision)
 }
 #[tauri::command]
+#[specta::specta]
 fn cycle_cost(price: String, rate: String) -> Result<String> {
     use rust_decimal::Decimal;
     let p = price.parse::<Decimal>().map_err(|e| e.to_string())?;
@@ -260,6 +295,7 @@ fn cycle_cost(price: String, rate: String) -> Result<String> {
         .ok_or("金额超出范围".into())
 }
 #[tauri::command]
+#[specta::specta]
 fn shortcut_source(path: Option<String>) -> Result<shortcuts::Source> {
     let p = path.map(PathBuf::from).unwrap_or_else(|| {
         PathBuf::from(
@@ -272,6 +308,7 @@ fn shortcut_source(path: Option<String>) -> Result<shortcuts::Source> {
     shortcuts::read(&p)
 }
 #[tauri::command]
+#[specta::specta]
 fn shortcut_preview(
     path: String,
     revision: String,
@@ -280,6 +317,7 @@ fn shortcut_preview(
     shortcuts::preview(&PathBuf::from(path), &revision, &change)
 }
 #[tauri::command]
+#[specta::specta]
 fn shortcut_save(
     app: tauri::AppHandle,
     path: String,
@@ -297,33 +335,25 @@ fn shortcut_save(
     )
 }
 #[tauri::command]
+#[specta::specta]
 fn shortcut_create_ahk(path: String) -> Result<shortcuts::Source> {
     shortcuts::create_ahk(&PathBuf::from(path))
 }
 #[tauri::command]
+#[specta::specta]
 fn shortcut_application(path: String) -> Result<(String, String)> {
     shortcuts::application(&PathBuf::from(path))
 }
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
-        .setup(|app| {
-            let dir = app.path().app_data_dir()?;
-            std::fs::create_dir_all(&dir)?;
-            let name = std::fs::read_to_string(dir.join("active-workspace"))
-                .unwrap_or_else(|_| "ssot.sqlite3".into());
-            if PathBuf::from(&name).components().count() != 1 || !name.ends_with(".sqlite3") {
-                return Err("invalid workspace pointer".into());
-            }
-            let path = dir.join(name);
-            store::open(&path).map_err(std::io::Error::other)?;
-            app.manage(AppState {
-                path: Mutex::new(path),
-            });
-            Ok(())
-        })
-        .invoke_handler(tauri::generate_handler![
+/// Every IPC command, registered once for both the invoke handler and the TS bindings.
+fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
+    tauri_specta::Builder::<tauri::Wry>::new()
+        .function_casing(tauri_specta::Casing::SnakeCase)
+        .error_handling(tauri_specta::ErrorHandlingMode::Throw)
+        // Revisions and sizes stay far below 2^53.
+        .dangerously_cast_bigints_to_number()
+        .commands(tauri_specta::collect_commands![
+            schema,
+            check_snapshot,
             load,
             save_asset,
             transfer_asset,
@@ -352,8 +382,66 @@ pub fn run() {
             shortcut_preview,
             shortcut_save,
             shortcut_create_ahk,
-            shortcut_application
+            shortcut_application,
         ])
+}
+fn bindings_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src/bindings.ts")
+}
+fn export_bindings(builder: &tauri_specta::Builder<tauri::Wry>, path: &std::path::Path) -> Result<()> {
+    builder
+        .export(
+            specta_typescript::Typescript::default()
+                .header("// Generated by tauri-specta from src-tauri. Do not edit; run `cargo test bindings`.\n// @ts-nocheck"),
+            path,
+        )
+        .map_err(|e| e.to_string())
+}
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    let builder = specta_builder();
+    #[cfg(debug_assertions)]
+    export_bindings(&builder, &bindings_path()).expect("无法导出 src/bindings.ts");
+    tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            let dir = app.path().app_data_dir()?;
+            std::fs::create_dir_all(&dir)?;
+            let name = std::fs::read_to_string(dir.join("active-workspace"))
+                .unwrap_or_else(|_| "ssot.sqlite3".into());
+            if PathBuf::from(&name).components().count() != 1 || !name.ends_with(".sqlite3") {
+                return Err("invalid workspace pointer".into());
+            }
+            let path = dir.join(name);
+            store::open(&path).map_err(std::io::Error::other)?;
+            app.manage(AppState {
+                path: Mutex::new(path),
+            });
+            Ok(())
+        })
+        .invoke_handler(builder.invoke_handler())
         .run(tauri::generate_context!())
         .expect("SSOT Hub 启动失败");
+}
+
+#[cfg(test)]
+mod tests {
+    /// Keeps src/bindings.ts in step with the Rust commands. Refresh with `UPDATE_BINDINGS=1 cargo test bindings`.
+    #[test]
+    fn bindings_are_current() {
+        let fresh = std::env::temp_dir().join(format!("ssot-bindings-{}.ts", std::process::id()));
+        super::export_bindings(&super::specta_builder(), &fresh).unwrap();
+        let generated = std::fs::read_to_string(&fresh).unwrap();
+        std::fs::remove_file(&fresh).ok();
+        let path = super::bindings_path();
+        if std::env::var("UPDATE_BINDINGS").is_ok() {
+            std::fs::write(&path, &generated).unwrap();
+        }
+        assert!(
+            // Windows checkouts may convert line endings.
+            std::fs::read_to_string(&path).unwrap_or_default().replace("\r\n", "\n")
+                == generated.replace("\r\n", "\n"),
+            "src/bindings.ts 已过期，运行 UPDATE_BINDINGS=1 cargo test bindings"
+        );
+    }
 }

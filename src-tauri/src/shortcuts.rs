@@ -34,7 +34,7 @@ struct Entry {
     name: Option<String>,
     node: Node,
 }
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, specta::Type)]
 #[serde(deny_unknown_fields)]
 pub struct Shortcut {
     pub id: String,
@@ -47,17 +47,23 @@ pub struct Shortcut {
     pub advanced: bool,
     pub line: usize,
 }
-#[derive(Serialize)]
+#[derive(Serialize, specta::Type, Debug, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum EngineName {
+    Hammerspoon,
+    AhkV2,
+}
+#[derive(Serialize, specta::Type)]
 pub struct Source {
     pub path: String,
-    pub engine: String,
+    pub engine: EngineName,
     pub revision: String,
     pub groups: Vec<String>,
     pub shortcuts: Vec<Shortcut>,
     pub reserved: Vec<String>,
     pub warnings: Vec<String>,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, specta::Type)]
 #[serde(deny_unknown_fields)]
 pub struct Change {
     pub id: Option<String>,
@@ -68,7 +74,7 @@ pub struct Change {
     pub bundle_id: String,
     pub match_window: String,
 }
-#[derive(Serialize)]
+#[derive(Serialize, specta::Type)]
 pub struct Preview {
     pub revision: String,
     pub before: String,
@@ -466,11 +472,10 @@ pub fn read(path: &Path) -> Result<Source> {
     Ok(Source {
         path: path.to_string_lossy().into_owned(),
         engine: if e == Engine::Lua {
-            "hammerspoon"
+            EngineName::Hammerspoon
         } else {
-            "ahk_v2"
-        }
-        .into(),
+            EngineName::AhkV2
+        },
         revision: digest(&s),
         groups: p.groups.into_iter().map(|(g, _)| g).collect(),
         shortcuts: p.rows.into_iter().map(|(r, _)| r).collect(),

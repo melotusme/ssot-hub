@@ -11,11 +11,9 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { empty, type Snapshot } from "./model";
 let db: Snapshot;
-vi.mock("./api", () => ({
-  desktop: true,
-  chooseFile: vi.fn(),
-  chooseExport: vi.fn(),
-  command: vi.fn(async (name: string, args: Record<string, unknown>) => {
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(async (name: string, args: Record<string, unknown>) => {
     if (name === "load") return structuredClone(db);
     if (name === "data_path") return "/test/ssot.sqlite3";
     if (name === "save_asset") {

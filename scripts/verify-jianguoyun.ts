@@ -2,9 +2,9 @@
 import { readFile } from "node:fs/promises";
 import { createDecipheriv, randomUUID, createHash } from "node:crypto";
 import { join } from "node:path";
+import { browserTransport } from "./fetch-transport.ts";
 import { empty } from "../src/model";
 import {
-  browserTransport,
   davDirectory,
   encryptPayload,
   decryptPayload,

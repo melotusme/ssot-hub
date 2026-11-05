@@ -5,12 +5,8 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { empty } from "./model";
 const command = vi.hoisted(() => vi.fn());
-vi.mock("./api", () => ({
-  desktop: true,
-  command,
-  chooseFile: vi.fn(),
-  chooseExport: vi.fn(),
-}));
+vi.mock("@tauri-apps/api/core", () => ({ invoke: command }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: vi.fn() }));
 import SyncPanel from "./SyncPanel";
 beforeEach(() => {
   localStorage.clear();

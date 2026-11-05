@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-import { command, desktop } from "./api";
+import { commands } from "./api";
 import { RecordList } from "./components/RecordList";
 export interface Shortcut {
   id: string;
@@ -139,10 +139,7 @@ function SourceDialog({
       });
       if (typeof path !== "string") return;
       if (draft.engine === "hammerspoon") {
-        const [app, bundle_id] = await command<[string, string]>(
-          "shortcut_application",
-          { path },
-        );
+        const [app, bundle_id] = await commands.shortcut_application(path);
         update({ app, bundle_id });
       } else {
         const exe = path.split(/[\\/]/).pop() || "";
@@ -179,11 +176,11 @@ function SourceDialog({
           e.preventDefault();
           void attempt(async () => {
             setPreview(
-              await command<Preview>("shortcut_preview", {
-                path: draft.path,
-                revision: draft.revision,
+              await commands.shortcut_preview(
+                draft.path,
+                draft.revision,
                 change,
-              }),
+              ),
             );
           });
         }}
@@ -300,7 +297,7 @@ function SourceDialog({
               />
               <button
                 type="button"
-                disabled={busy || draft.advanced || !desktop}
+                disabled={busy || draft.advanced}
                 onClick={pick}
               >
                 <FolderOpen size={16} />
@@ -354,11 +351,11 @@ function SourceDialog({
               onClick={() =>
                 void attempt(async () => {
                   onSaved(
-                    await command<ShortcutSource>("shortcut_save", {
-                      path: draft.path,
-                      revision: preview.revision,
+                    await commands.shortcut_save(
+                      draft.path,
+                      preview.revision,
                       change,
-                    }),
+                    ),
                   );
                 })
               }
@@ -366,11 +363,7 @@ function SourceDialog({
               {busy ? "保存中…" : "确认写入代码"}
             </button>
           ) : (
-            <button
-              type="submit"
-              className="primary"
-              disabled={busy || stale || !desktop}
-            >
+            <button type="submit" className="primary" disabled={busy || stale}>
               {busy ? "检查中…" : "预览代码变更"}
             </button>
           )}
@@ -436,9 +429,7 @@ export default function ShortcutsPage() {
     const id = ++request.current;
     if (!silent) setLoading(true);
     try {
-      const s = await command<ShortcutSource>("shortcut_source", {
-        path: path || null,
-      });
+      const s = await commands.shortcut_source(path || null);
       if (request.current !== id) return;
       setSource(s);
       setError("");
@@ -460,7 +451,7 @@ export default function ShortcutsPage() {
     } catch {
       /* optional preference */
     }
-    if (desktop) void read(path);
+    void read(path);
   }, [read]);
   useEffect(() => {
     if (!source) return;
@@ -497,7 +488,7 @@ export default function ShortcutsPage() {
         filters: [{ name: "AutoHotkey v2", extensions: ["ahk"] }],
       });
       if (!path) return;
-      const s = await command<ShortcutSource>("shortcut_create_ahk", { path });
+      const s = await commands.shortcut_create_ahk(path);
       setSource(s);
       setGroup("all");
       setMode("all");
@@ -562,11 +553,11 @@ export default function ShortcutsPage() {
           </div>
         </div>
         <div className="source-actions">
-          <button disabled={loading || !desktop} onClick={openSource}>
+          <button disabled={loading} onClick={openSource}>
             <FolderOpen size={16} />
             打开源码
           </button>
-          <button disabled={loading || !desktop} onClick={createAhk}>
+          <button disabled={loading} onClick={createAhk}>
             <FileCode2 size={16} />
             新建 AHK v2
           </button>
@@ -575,10 +566,7 @@ export default function ShortcutsPage() {
       {error && (
         <div className="banner error" role="alert">
           {error}
-          <button
-            disabled={loading || !desktop}
-            onClick={() => void read(source?.path)}
-          >
+          <button disabled={loading} onClick={() => void read(source?.path)}>
             重试读取
           </button>
         </div>
@@ -747,11 +735,11 @@ export default function ShortcutsPage() {
       ) : (
         <div className="panel empty">
           <Keyboard size={32} />
-          <h3>{desktop ? "选择现有快捷键代码" : "快捷键代码工作台"}</h3>
+          <h3>选择现有快捷键代码</h3>
           <p>
-            {desktop
-              ? "支持现有 Hammerspoon app_shortcuts 表与 SSOT Hub 的 AHK v2 声明格式。"
-              : "请在桌面端打开 Lua 或 AHK v2 文件，源码将始终作为唯一配置来源。"}
+            {
+              "支持现有 Hammerspoon app_shortcuts 表与 SSOT Hub 的 AHK v2 声明格式。"
+            }
           </p>
         </div>
       )}

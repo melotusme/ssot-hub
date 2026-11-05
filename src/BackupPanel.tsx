@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { command } from "./api";
+import { commands } from "./api";
 import { RecordList } from "./components/RecordList";
 import type { Snapshot } from "./model";
 interface Backup {
@@ -35,14 +35,13 @@ export default function BackupPanel({
   return (
     <section className="panel settings-card wide">
       <h2>本地备份恢复点</h2>
-      <p>
-        删除、同步替换和新建空间前保留的副本。浏览器副本仍受清除网站数据影响，请另行导出。
-      </p>
+      <p>删除、同步替换和新建空间前保留的副本，存放在应用数据目录。</p>
       <button
         disabled={busy}
         onClick={() =>
           run(async () => {
-            setItems(await command<Backup[]>("list_backups"));
+            // list_backups returns loosely typed JSON rows { id, at, count }.
+            setItems((await commands.list_backups()) as unknown as Backup[]);
             setLoaded(true);
           })
         }
@@ -72,7 +71,7 @@ export default function BackupPanel({
                   onClick={() =>
                     run(async () => {
                       setPreview({
-                        s: await command<Snapshot>("read_backup", { id: b.id }),
+                        s: await commands.read_backup(b.id),
                         revision: snapshot.revision,
                       });
                     })
@@ -99,10 +98,7 @@ export default function BackupPanel({
             onClick={() =>
               run(async () => {
                 onChange(
-                  await command<Snapshot>("replace_snapshot", {
-                    snapshot: preview.s,
-                    revision: preview.revision,
-                  }),
+                  await commands.replace_snapshot(preview.s, preview.revision),
                 );
                 setPreview(null);
                 setLoaded(false);

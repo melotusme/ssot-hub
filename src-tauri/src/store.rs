@@ -2,35 +2,16 @@ use chrono::Utc;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
 };
 use uuid::Uuid;
 
+use crate::schema;
+
 type Result<T> = std::result::Result<T, String>;
-const KINDS: &[&str] = &[
-    "device",
-    "environment",
-    "software",
-    "config",
-    "account",
-    "phone",
-    "esim",
-    "subscription",
-    "person",
-    "storage",
-    "domain",
-    "server",
-    "agent",
-    "course",
-    "assignment",
-    "resource",
-    "copy",
-    "network",
-    "connection",
-];
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, specta::Type)]
 #[serde(deny_unknown_fields)]
 pub struct Asset {
     pub id: String,
@@ -39,7 +20,7 @@ pub struct Asset {
     pub status: String,
     pub fields: BTreeMap<String, String>,
 }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, specta::Type)]
 #[serde(deny_unknown_fields)]
 pub struct Link {
     pub id: String,
@@ -47,7 +28,7 @@ pub struct Link {
     pub to: String,
     pub relation: String,
 }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, specta::Type)]
 #[serde(deny_unknown_fields)]
 pub struct Event {
     pub id: String,
@@ -56,7 +37,7 @@ pub struct Event {
     pub action: String,
     pub detail: String,
 }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, specta::Type)]
 #[serde(deny_unknown_fields)]
 pub struct Snapshot {
     pub version: u32,
@@ -65,7 +46,7 @@ pub struct Snapshot {
     pub links: Vec<Link>,
     pub events: Vec<Event>,
 }
-#[derive(Serialize)]
+#[derive(Serialize, specta::Type)]
 pub struct DeletePlan {
     pub revision: u64,
     pub asset: Asset,
@@ -157,231 +138,44 @@ fn persist(c: &Connection, s: &mut Snapshot) -> Result<()> {
     .map_err(error)?;
     Ok(())
 }
-fn allowed(kind: &str) -> Vec<&str> {
-    let mut keys = vec![
-        "notes",
-        "purpose",
-        "secret_ref",
-        "expires_on",
-        "verification",
-        "evidence",
-        "observed_at",
-        "review_note",
-    ];
-    keys.extend(match kind {
-        "device" => vec![
-            "platform",
-            "device_kind",
-            "model",
-            "owner_id",
-            "location",
-            "serial",
-            "mac",
-            "ip",
-            "observed_at",
-            "evidence",
-            "purchased_on",
-        ],
-        "environment" => vec![
-            "environment_kind",
-            "vmid",
-            "runtime_state",
-            "os",
-            "version",
-            "device_id",
-            "host_id",
-            "role",
-            "storage_id",
-            "partition",
-            "mac",
-            "ip",
-            "observed_at",
-            "evidence",
-        ],
-        "software" => vec![
-            "environment_id",
-            "source",
-            "manager",
-            "package_kind",
-            "version",
-            "commit",
-            "branch",
-            "path",
-            "repository",
-            "subscription_id",
-            "config_id",
-            "license_ref",
-            "enabled_state",
-            "runtime_state",
-        ],
-        "config" => vec!["authority", "authority_ref", "forbidden_sync"],
-        "account" => vec!["provider", "login_hint", "email", "tags", "owner_id"],
-        "phone" => vec!["number", "carrier", "country", "owner"],
-        "esim" => vec![
-            "carrier",
-            "channel",
-            "plan",
-            "country",
-            "device_id",
-            "account_id",
-            "phone_id",
-        ],
-        "subscription" => vec![
-            "category",
-            "provider",
-            "owner_id",
-            "account_id",
-            "channel",
-            "price",
-            "currency",
-            "billing_period",
-            "exchange_rate",
-            "base_currency",
-            "rate_date",
-            "auto_renew",
-        ],
-        "person" => vec!["person_kind", "relationship"],
-        "storage" => vec![
-            "storage_kind",
-            "model",
-            "serial",
-            "capacity",
-            "interface",
-            "device_id",
-            "owner_id",
-            "location",
-            "health",
-            "backup_ref",
-        ],
-        "domain" => vec![
-            "hostname",
-            "registrar",
-            "account_id",
-            "server_id",
-            "subscription_id",
-            "dns_provider",
-        ],
-        "server" => vec![
-            "provider",
-            "region",
-            "ip",
-            "spec",
-            "os",
-            "account_id",
-            "subscription_id",
-            "owner_id",
-        ],
-        "agent" => vec![
-            "provider",
-            "environment_id",
-            "server_id",
-            "account_id",
-            "subscription_id",
-            "config_id",
-            "endpoint",
-        ],
-        "course" => vec![
-            "person_id",
-            "institution",
-            "subject",
-            "teacher",
-            "schedule",
-            "location",
-            "starts_on",
-            "lessons_total",
-            "lessons_used",
-            "price",
-            "currency",
-            "account_id",
-        ],
-        "assignment" => vec![
-            "asset_id",
-            "person_id",
-            "usage_role",
-            "starts_on",
-            "ends_on",
-            "location",
-        ],
-        "resource" => vec!["resource_kind", "platform", "distribution", "version"],
-        "copy" => vec![
-            "resource_id",
-            "holder_id",
-            "path",
-            "copy_role",
-            "environment_id",
-            "content_state",
-            "checksum",
-        ],
-        "network" => vec![
-            "technology",
-            "network_code",
-            "network_range",
-            "account_id",
-            "config_id",
-            "subscription_id",
-        ],
-        "connection" => vec![
-            "network_id",
-            "node_id",
-            "software_id",
-            "enabled_state",
-            "node_address",
-            "advertised_routes",
-            "endpoint",
-            "probe_state",
-            "probe_at",
-        ],
-        _ => vec![],
-    });
-    keys
+/// Whether `key` holds a reference on assets of `kind`.
+fn is_ref(kind: &str, key: &str) -> bool {
+    schema::field(kind, key).is_some_and(|f| f.refs.is_some())
 }
-fn ref_kind(key: &str) -> Option<&'static str> {
-    match key {
-        "device_id" => Some("device"),
-        "host_id" | "environment_id" => Some("environment"),
-        "account_id" => Some("account"),
-        "phone_id" => Some("phone"),
-        "subscription_id" => Some("subscription"),
-        "config_id" => Some("config"),
-        "owner_id" | "person_id" => Some("person"),
-        "storage_id" => Some("storage"),
-        "server_id" => Some("server"),
-        "asset_id" => Some("assignable"),
-        "holder_id" => Some("holder"),
-        "node_id" => Some("node"),
-        "resource_id" => Some("resource"),
-        "network_id" => Some("network"),
-        "software_id" => Some("software"),
-        _ => None,
-    }
-}
+const NAME_MAX_CHARS: usize = 500;
 pub fn validate(s: &Snapshot) -> Result<()> {
     if ![1, 2, 3].contains(&s.version) {
         return Err("不支持的快照版本".into());
     }
-    let mut ids = HashSet::new();
+    let mut by_id: HashMap<&str, &Asset> = HashMap::with_capacity(s.assets.len());
     for a in &s.assets {
-        if a.id.is_empty()
-            || !ids.insert(a.id.clone())
-            || !KINDS.contains(&a.kind.as_str())
-            || a.name.trim().is_empty()
-        {
-            return Err("资产 ID、名称或类型无效/重复".into());
+        if a.id.is_empty() || by_id.insert(a.id.as_str(), a).is_some() {
+            return Err("资产 ID 无效/重复".into());
         }
-        if a.name.len() > 500 || !["active", "retired"].contains(&a.status.as_str()) {
+    }
+    let mut ids: HashSet<String> = by_id.keys().map(|k| k.to_string()).collect();
+    for a in &s.assets {
+        let Some(def) = schema::kind_def(&a.kind) else {
+            return Err(format!("不支持的资产类型：{}", a.kind));
+        };
+        if a.name.trim().is_empty() {
+            return Err("资产名称不能为空".into());
+        }
+        if a.name.chars().count() > NAME_MAX_CHARS || !["active", "retired"].contains(&a.status.as_str()) {
             return Err("名称过长或资产状态无效".into());
         }
-        let keys = allowed(&a.kind);
         for (k, v) in &a.fields {
-            if !keys.contains(&k.as_str()) {
+            let field = def.fields.iter().find(|f| f.key == k);
+            if field.is_none() && !schema::LEGACY_KEYS.contains(&k.as_str()) {
                 return Err(format!("不支持的字段：{k}（请勿录入密码或令牌）"));
             }
-            if v.len() > 20000 {
+            if v.chars().count() > 20000 {
                 return Err("字段内容过长".into());
             }
             if v.is_empty() {
                 continue;
             }
+            let label = field.map(|f| f.label).unwrap_or(k);
             if ["secret_ref", "license_ref"].contains(&k.as_str())
                 && !["op://", "1password://", "vault://", "keychain://", "bw://"]
                     .iter()
@@ -389,32 +183,22 @@ pub fn validate(s: &Snapshot) -> Result<()> {
             {
                 return Err("凭据仅允许保险库引用".into());
             }
-            if [
-                "expires_on",
-                "rate_date",
-                "starts_on",
-                "ends_on",
-                "purchased_on",
-            ]
-            .contains(&k.as_str())
-                && chrono::NaiveDate::parse_from_str(v, "%Y-%m-%d").is_err()
-            {
-                return Err("日期应为有效的 YYYY-MM-DD".into());
+            let is_date = field.map_or(schema::legacy_is_date(k), |f| f.is_date());
+            if is_date && chrono::NaiveDate::parse_from_str(v, "%Y-%m-%d").is_err() {
+                return Err(format!("{label}应为有效的 YYYY-MM-DD"));
             }
-            if let Some(kind) = ref_kind(k)
+            if let Some(targets) = field.and_then(|f| f.refs.as_ref())
                 && (a.id == *v
-                    || !s.assets.iter().any(|t| {
-                        t.id == *v
-                            && (t.kind == kind
-                                || kind == "assignable"
-                                    && ["device", "storage", "server"].contains(&t.kind.as_str())
-                                || k == "holder_id"
-                                    && ["storage", "device", "account"].contains(&t.kind.as_str())
-                                || k == "node_id"
-                                    && ["device", "environment"].contains(&t.kind.as_str()))
-                    }))
+                    || !by_id
+                        .get(v.as_str())
+                        .is_some_and(|t| targets.contains(&t.kind.as_str())))
             {
-                return Err(format!("{k} 引用无效"));
+                return Err(format!("{label} 引用无效（{}）", a.name));
+            }
+            if let Some(options) = field.and_then(|f| f.options.as_ref())
+                && !options.iter().any(|(value, _)| value == v)
+            {
+                return Err(format!("{label} 选项无效：{v}"));
             }
             if ["price", "exchange_rate"].contains(&k.as_str()) {
                 let n = v
@@ -429,24 +213,17 @@ pub fn validate(s: &Snapshot) -> Result<()> {
             {
                 return Err("币种应为三位大写代码，如 CNY".into());
             }
-            if k == "auto_renew" && !["yes", "no"].contains(&v.as_str()) {
-                return Err("自动续费状态无效".into());
-            }
-            if k == "source" && !["brew", "git", "app", "other"].contains(&v.as_str()) {
-                return Err("软件来源无效".into());
-            }
-            if k == "authority" && !["git", "dav", "vendor", "local"].contains(&v.as_str()) {
-                return Err("配置权威类型无效".into());
-            }
-            if k == "billing_period" && !["month", "year", "once"].contains(&v.as_str()) {
-                return Err("计费周期无效".into());
-            }
             if ["repository", "authority_ref", "endpoint", "backup_ref", "path"].contains(&k.as_str())
                 && (v.contains('@') && v.contains("://")
                     || v.contains("token=")
                     || v.contains("password="))
             {
                 return Err("地址不能包含凭据".into());
+            }
+        }
+        for f in def.fields.iter().filter(|f| f.required) {
+            if a.fields.get(f.key).is_none_or(|v| v.is_empty()) {
+                return Err(format!("请填写{}（{}）", f.label.trim_end_matches(" *"), a.name));
             }
         }
         if a.kind == "software" && a.fields.get("environment_id").is_none_or(|v| v.is_empty()) {
@@ -549,10 +326,10 @@ pub fn validate(s: &Snapshot) -> Result<()> {
                 return Err("标记连通性必须填写有效测试时间，配置存在不等于连通".into());
             }
             if let Some(software_id) = a.fields.get("software_id").filter(|v| !v.is_empty()) {
-                let installation = s.assets.iter().find(|x| x.id == *software_id);
+                let installation = by_id.get(software_id.as_str());
                 let env = installation
                     .and_then(|x| x.fields.get("environment_id"))
-                    .and_then(|id| s.assets.iter().find(|x| x.id == *id));
+                    .and_then(|id| by_id.get(id.as_str()));
                 let node = a.fields.get("node_id").map(String::as_str);
                 let env_device = env.and_then(|e| e.fields.get("device_id")).map(String::as_str);
                 if node != env.map(|e| e.id.as_str()) && node != env_device {
@@ -570,7 +347,7 @@ pub fn validate(s: &Snapshot) -> Result<()> {
             cursor = node
                 .fields
                 .get("host_id")
-                .and_then(|id| s.assets.iter().find(|t| t.id == *id));
+                .and_then(|id| by_id.get(id.as_str()).copied());
         }
     }
     let mut triples = HashSet::new();
@@ -579,8 +356,8 @@ pub fn validate(s: &Snapshot) -> Result<()> {
             || !ids.insert(l.id.clone())
             || l.from == l.to
             || l.relation.trim().is_empty()
-            || !s.assets.iter().any(|a| a.id == l.from)
-            || !s.assets.iter().any(|a| a.id == l.to)
+            || !by_id.contains_key(l.from.as_str())
+            || !by_id.contains_key(l.to.as_str())
             || !triples.insert((&l.from, &l.to, &l.relation))
         {
             return Err("关系端点、用途或 ID 无效/重复".into());
@@ -698,7 +475,7 @@ pub fn plan(s: &Snapshot, id: &str) -> Result<DeletePlan> {
     let mut blockers = vec![];
     for a in &s.assets {
         for (k, v) in &a.fields {
-            if ref_kind(k).is_some() && v == id {
+            if is_ref(&a.kind, k) && v == id {
                 blockers.push(format!("{} · {}", a.name, k));
             }
         }
@@ -961,6 +738,49 @@ mod tests {
             a.fields.insert(k.into(), v.into());
         }
         a
+    }
+    fn with(mut a: Asset, fields: &[(&str, &str)]) -> Asset {
+        for (k, v) in fields {
+            a.fields.insert((*k).into(), (*v).into());
+        }
+        a
+    }
+    fn snapshot(assets: Vec<Asset>) -> Snapshot {
+        Snapshot {
+            version: 1,
+            revision: 0,
+            assets,
+            links: vec![],
+            events: vec![],
+        }
+    }
+    #[test]
+    fn schema_rules_cover_options_required_secrets_and_dates() {
+        let me = asset("me", "person");
+        // v1 snapshots stay readable.
+        assert!(validate(&snapshot(vec![me.clone()])).is_ok());
+        let bad_option = with(asset("d", "device"), &[("device_kind", "toaster")]);
+        assert!(validate(&snapshot(vec![bad_option])).unwrap_err().contains("选项"));
+        let unknown = with(asset("d", "device"), &[("password", "x")]);
+        assert!(validate(&snapshot(vec![unknown])).unwrap_err().contains("不支持的字段"));
+        let missing = asset("c", "copy");
+        assert!(validate(&snapshot(vec![missing])).unwrap_err().contains("请填写"));
+        let plain_secret = with(asset("a", "account"), &[("secret_ref", "hunter2")]);
+        assert!(validate(&snapshot(vec![plain_secret])).unwrap_err().contains("保险库"));
+        let bad_date = with(asset("d", "device"), &[("purchased_on", "2026-02-30")]);
+        assert!(validate(&snapshot(vec![bad_date])).unwrap_err().contains("YYYY-MM-DD"));
+        let wrong_kind = with(asset("d", "device"), &[("owner_id", "d2")]);
+        let d2 = asset("d2", "device");
+        assert!(validate(&snapshot(vec![wrong_kind, d2])).unwrap_err().contains("引用无效"));
+        let mut zero = assignment("z", "me", "2026-01-01");
+        zero.fields.insert("ends_on".into(), "2026-01-01".into());
+        assert!(validate(&snapshot(vec![me.clone(), asset("laptop", "device"), zero])).unwrap_err().contains("晚于"));
+        // Legacy keys accepted on any kind, and 500-character Chinese names fit.
+        let legacy = Asset {
+            name: "名".repeat(500),
+            ..with(asset("d", "device"), &[("expires_on", "2027-01-01"), ("purpose", "x")])
+        };
+        assert!(validate(&snapshot(vec![legacy])).is_ok());
     }
     #[test]
     fn transfer_is_atomic_preserves_history_and_rejects_stale_writes() {

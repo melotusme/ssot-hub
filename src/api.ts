@@ -1,37 +1,29 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { webCommand } from "./web-store";
-export const desktop = isTauri();
-export async function command<T>(
-  name: string,
-  args?: Record<string, unknown>,
-): Promise<T> {
-  if (!desktop) {
-    return webCommand<T>(name, args);
-  }
-  return invoke<T>(name, args);
-}
+import { commands as generated } from "./bindings";
+import type * as B from "./bindings";
+import type { Asset, DeletePlan, Schema, Snapshot } from "./model";
+
+// Rust types use plain strings for kind / status; the UI works with the narrower model types.
+type Narrow<T> = T extends B.Snapshot
+  ? Snapshot
+  : T extends B.Asset[]
+    ? Asset[]
+    : T extends B.DeletePlan
+      ? DeletePlan
+      : T extends B.Schema_Serialize
+        ? Schema
+        : T;
+type Generated = typeof generated;
+type Typed = {
+  [K in keyof Generated]: (
+    ...args: Parameters<Generated[K]>
+  ) => Promise<Narrow<Awaited<ReturnType<Generated[K]>>>>;
+};
+
+/** Desktop backend commands with names, arguments and results checked against the Rust code. */
+export const commands = generated as unknown as Typed;
+
 export async function chooseFile(directory = false) {
-  if (!desktop) {
-    if (directory) throw Error("目录扫描仅支持桌面版");
-    return new Promise<string | null>((resolve, reject) => {
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = ".json";
-      input.onchange = async () => {
-        try {
-          const file = input.files?.[0];
-          if (file && file.size > 20 * 1024 * 1024)
-            throw Error("快照不能超过 20 MB");
-          resolve(file ? await file.text() : null);
-        } catch (e) {
-          reject(e);
-        }
-      };
-      input.oncancel = () => resolve(null);
-      input.click();
-    });
-  }
   return open({
     directory,
     multiple: false,
@@ -41,7 +33,6 @@ export async function chooseFile(directory = false) {
   });
 }
 export async function chooseExport() {
-  if (!desktop) return "browser-download";
   return save({
     defaultPath: `ssot-${new Date().toISOString().slice(0, 10)}.json`,
     filters: [{ name: "JSON 快照", extensions: ["json"] }],

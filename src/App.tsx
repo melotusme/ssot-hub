@@ -33,7 +33,7 @@ import {
   Waypoints,
   X,
 } from "lucide-react";
-import { command, chooseFile, chooseExport, desktop } from "./api";
+import { commands, chooseFile, chooseExport } from "./api";
 import {
   connections,
   demo,
@@ -399,10 +399,9 @@ function ScanForm({
       const path = await chooseFile(source === "git");
       if (!path) return;
       setPreview(
-        await command<Asset[]>(
-          source === "git" ? "preview_git" : "preview_brew",
-          { path, environment, depth },
-        ),
+        await (source === "git"
+          ? commands.preview_git(path, depth, environment)
+          : commands.preview_brew(path, environment)),
       );
     } catch (e) {
       setError(String(e));
@@ -532,7 +531,8 @@ function Cost({ asset }: { asset: Asset }) {
     let live = true;
     setValue("");
     if (f.price && f.exchange_rate)
-      command<string>("cycle_cost", { price: f.price, rate: f.exchange_rate })
+      commands
+        .cycle_cost(f.price, f.exchange_rate)
         .then((v) => {
           if (live) setValue(v);
         })
@@ -579,8 +579,8 @@ export default function App() {
   const searchRef = useRef<HTMLInputElement>(null);
   const refresh = async () => {
     try {
-      setSnapshot(await command<Snapshot>("load"));
-      setPath(await command<string>("data_path"));
+      setSnapshot(await commands.load());
+      setPath(await commands.data_path());
       setError("");
     } catch (e) {
       setError(String(e));
@@ -617,13 +617,13 @@ export default function App() {
       setBusy(false);
     }
   };
+  /** Run a write against the current revision; the backend rejects stale views. */
   const mutate = (
-    name: string,
-    args: Record<string, unknown>,
+    write: (revision: number) => Promise<Snapshot>,
     message: string,
   ) =>
     run(
-      () => command<Snapshot>(name, { ...args, revision: snapshot.revision }),
+      () => write(snapshot.revision),
       (s) => {
         setSnapshot(s);
         setModal(null);
@@ -741,7 +741,7 @@ export default function App() {
   };
   const backup = () =>
     run(
-      () => command<string>("backup"),
+      () => commands.backup(),
       (p) => setNotice(`备份已保存：${p}`),
     );
   const restore = () =>
@@ -749,7 +749,7 @@ export default function App() {
       async () => {
         const file = await chooseFile();
         if (!file) return null;
-        return command<Snapshot>("preview_snapshot", { path: file });
+        return commands.preview_snapshot(file);
       },
       (s) => {
         if (s) openModal({ type: "restore", snapshot: s });
@@ -760,7 +760,7 @@ export default function App() {
       async () => {
         const p = await chooseExport();
         if (!p) return false;
-        await command("export_snapshot", { path: p });
+        await commands.export_snapshot(p);
         return true;
       },
       (ok) => {
@@ -780,7 +780,7 @@ export default function App() {
           <div>
             SSOT<span>HUB</span>
           </div>
-          <small>{desktop ? "DESKTOP" : "WEB"}</small>
+          <small>DESKTOP</small>
         </div>
         <div className="workspace">
           <span className="workspace-icon">
@@ -901,7 +901,7 @@ export default function App() {
               ))}
               <option value="history">变更记录</option>
               <option value="settings">数据与备份 / 同步</option>
-              {desktop && <option value="shortcuts">应用快捷键</option>}
+              <option value="shortcuts">应用快捷键</option>
             </select>
           </label>
           <div className="page-head">
@@ -935,7 +935,7 @@ export default function App() {
                       导入路由器清单
                     </button>
                     <button
-                      disabled={busy || !desktop}
+                      disabled={busy}
                       onClick={() => openModal({ type: "import" })}
                     >
                       <ArrowDownToLine size={16} />
@@ -959,15 +959,6 @@ export default function App() {
                 )}
             </div>
           </div>
-          {!desktop && (
-            <div className="banner">
-              <Monitor size={18} />
-              <span>
-                Web 本地台账 ·
-                数据保存在此浏览器；清除网站数据会丢失，请定期备份或同步。快捷键源码与软件扫描仅限桌面。
-              </span>
-            </div>
-          )}
           {error && !modal && (
             <div role="alert" className="banner error">
               {error}
@@ -999,10 +990,7 @@ export default function App() {
                   <Database />
                 </span>
                 <h2>本地工作空间</h2>
-                <p>
-                  资产、关系和变更记录保存在
-                  {desktop ? "本机 SQLite" : "本浏览器 IndexedDB"}中。
-                </p>
+                <p>资产、关系和变更记录保存在 本机 SQLite 中。</p>
                 <code className="path">{path}</code>
                 <div className="metrics-inline">
                   <span>{snapshot.assets.length} 项资产</span>
@@ -1523,10 +1511,7 @@ export default function App() {
                         aria-label="预览删除资产"
                         onClick={() =>
                           run(
-                            () =>
-                              command<DeletePlan>("delete_plan", {
-                                id: current.id,
-                              }),
+                            () => commands.delete_plan(current.id),
                             (p) => openModal({ type: "delete", plan: p }),
                           )
                         }
@@ -1770,8 +1755,11 @@ export default function App() {
                                         aria-label={`移除与 ${target.name} 的关联`}
                                         onClick={() =>
                                           mutate(
-                                            "remove_link",
-                                            { id: r.linkId },
+                                            (rev) =>
+                                              commands.remove_link(
+                                                r.linkId!,
+                                                rev,
+                                              ),
                                             "关联已移除",
                                           )
                                         }
@@ -1826,11 +1814,10 @@ export default function App() {
           save={(a) =>
             modal.transferFrom
               ? mutate(
-                  "transfer_asset",
-                  { id: modal.transferFrom, next: a },
+                  (rev) => commands.transfer_asset(modal.transferFrom!, a, rev),
                   "交接完成，旧使用历史已保留",
                 )
-              : mutate("save_asset", { asset: a }, "资产已保存")
+              : mutate((rev) => commands.save_asset(a, rev), "资产已保存")
           }
         />
       )}
@@ -1843,8 +1830,11 @@ export default function App() {
             error={error}
             submit={(to, relation) =>
               mutate(
-                "save_link",
-                { link: { id: uid(), from: modal.asset.id, to, relation } },
+                (rev) =>
+                  commands.save_link(
+                    { id: uid(), from: modal.asset.id, to, relation },
+                    rev,
+                  ),
                 "关联已建立",
               )
             }
@@ -1858,8 +1848,11 @@ export default function App() {
             revision={snapshot.revision}
             busy={busy}
             error={error}
-            apply={(assets, revision) =>
-              mutate("apply_import", { assets, revision }, "软件清单已导入")
+            apply={(assets) =>
+              mutate(
+                (rev) => commands.apply_import(assets, rev),
+                "软件清单已导入",
+              )
             }
           />
         </ModalFrame>
@@ -1870,8 +1863,7 @@ export default function App() {
             snapshot={snapshot}
             apply={(assets) =>
               mutate(
-                "apply_import",
-                { assets },
+                (rev) => commands.apply_import(assets, rev),
                 "已登记所选候选；请补充型号、产权和使用人",
               )
             }
@@ -1927,11 +1919,7 @@ export default function App() {
               onClick={() => {
                 const p = modal.plan;
                 void run(
-                  () =>
-                    command<Snapshot>("delete_asset", {
-                      id: p.asset.id,
-                      revision: p.revision,
-                    }),
+                  () => commands.delete_asset(p.asset.id, p.revision),
                   (s) => {
                     setSnapshot(s);
                     setModal(null);
@@ -1973,8 +1961,7 @@ export default function App() {
               }
               onClick={() =>
                 mutate(
-                  "restore_snapshot",
-                  { snapshot: modal.snapshot },
+                  (rev) => commands.restore_snapshot(modal.snapshot, rev),
                   "快照已恢复，请核对资产与关系",
                 )
               }
@@ -2004,7 +1991,7 @@ export default function App() {
               disabled={busy}
               onClick={() =>
                 run(
-                  () => command<Snapshot>("new_workspace"),
+                  () => commands.new_workspace(),
                   (s) => {
                     try {
                       for (const key of Object.keys(localStorage))
@@ -2016,7 +2003,7 @@ export default function App() {
                     setSnapshot(s);
                     setSelected(null);
                     setModal(null);
-                    void command<string>("data_path").then(setPath);
+                    void commands.data_path().then(setPath);
                     setNotice("已备份并切换到空工作空间");
                   },
                 )
@@ -2051,8 +2038,7 @@ export default function App() {
               disabled={busy}
               onClick={() => {
                 mutate(
-                  "restore_snapshot",
-                  { snapshot: demo() },
+                  (rev) => commands.restore_snapshot(demo(), rev),
                   "虚构示例已载入",
                 );
               }}
