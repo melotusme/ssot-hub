@@ -371,7 +371,11 @@ pub fn validate(s: &Snapshot) -> Result<()> {
     }
     Ok(())
 }
-pub fn save_asset(c: &mut Connection, a: Asset, revision: u64) -> Result<Snapshot> {
+pub fn save_asset(c: &mut Connection, mut a: Asset, revision: u64) -> Result<Snapshot> {
+    // Entered by hand: the user vouches for it unless a source was already recorded.
+    a.fields
+        .entry("verification".into())
+        .or_insert_with(|| "confirmed".into());
     let tx = c
         .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
         .map_err(error)?;

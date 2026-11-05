@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ShieldCheck, X } from "lucide-react";
-import { fields, matchesRef, names, type Asset } from "../model";
+import {
+  defaultsFor,
+  empty,
+  fields,
+  isVisible,
+  matchesRef,
+  names,
+  type Asset,
+  type Field,
+} from "../model";
 
 export function ModalFrame({
   title,
@@ -42,6 +51,73 @@ export function ModalFrame({
     </dialog>
   );
 }
+interface FieldInputProps {
+  field: Field;
+  value: Asset;
+  assets: Asset[];
+  /** The record being edited; it cannot reference itself. */
+  self: string;
+  change: (key: string, v: string) => void;
+}
+/** One schema field rendered as the matching control. */
+function FieldInput({
+  field: f,
+  value,
+  assets,
+  self,
+  change,
+}: FieldInputProps) {
+  const current = value.fields[f.key] || "";
+  return (
+    <label className={f.type === "textarea" ? "wide" : ""}>
+      {f.label}
+      {f.ref ? (
+        <select
+          required={f.required}
+          value={current}
+          onChange={(e) => change(f.key, e.target.value)}
+        >
+          <option value="">请选择（可选项可留空）</option>
+          {assets
+            .filter((a) => matchesRef(a.kind, f.ref) && a.id !== self)
+            .map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+                {a.status === "retired" ? " · 已退役" : ""}
+              </option>
+            ))}
+        </select>
+      ) : f.options ? (
+        <select
+          required={f.required}
+          value={current}
+          onChange={(e) => change(f.key, e.target.value)}
+        >
+          <option value="">未设置</option>
+          {f.options.map(([v, label]) => (
+            <option value={v} key={v}>
+              {label}
+            </option>
+          ))}
+        </select>
+      ) : f.type === "textarea" ? (
+        <textarea
+          value={current}
+          onChange={(e) => change(f.key, e.target.value)}
+        />
+      ) : (
+        <input
+          required={f.required}
+          type={f.type || "text"}
+          placeholder={f.placeholder}
+          value={current}
+          onChange={(e) => change(f.key, e.target.value)}
+        />
+      )}
+    </label>
+  );
+}
+
 export function AssetEditor({
   asset,
   assets,
@@ -60,6 +136,21 @@ export function AssetEditor({
   const [value, setValue] = useState<Asset>(structuredClone(asset));
   const change = (key: string, v: string) =>
     setValue((a) => ({ ...a, fields: { ...a.fields, [key]: v } }));
+  const visible = fields[asset.kind].filter(
+    (f) => f.tier !== "system" && isVisible(f, value),
+  );
+  const shown = {
+    core: visible.filter((f) => f.tier === "core"),
+    more: visible.filter((f) => f.tier === "more"),
+  };
+  // Open "更多信息" only when it holds something beyond the prefilled defaults.
+  const defaults = defaultsFor(asset.kind, { ...empty, assets });
+  const moreHasValues =
+    value.status === "retired" ||
+    shown.more.some(
+      (f) => !!asset.fields[f.key] && asset.fields[f.key] !== defaults[f.key],
+    );
+  const inputProps = { value, assets, self: asset.id, change };
   return (
     <ModalFrame
       title={
@@ -87,75 +178,33 @@ export function AssetEditor({
               placeholder="给这项资产一个易于识别的名字"
             />
           </label>
-          {fields[asset.kind].map((f) => (
-            <label key={f.key} className={f.type === "textarea" ? "wide" : ""}>
-              {f.label}
-              {f.ref ? (
-                <select
-                  required={
-                    f.required ||
-                    (asset.kind === "software" && f.key === "environment_id")
-                  }
-                  value={value.fields[f.key] || ""}
-                  onChange={(e) => change(f.key, e.target.value)}
-                >
-                  <option value="">请选择（可选项可留空）</option>
-                  {assets
-                    .filter(
-                      (a) => matchesRef(a.kind, f.ref) && a.id !== asset.id,
-                    )
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                        {a.status === "retired" ? " · 已退役" : ""}
-                      </option>
-                    ))}
-                </select>
-              ) : f.options ? (
-                <select
-                  required={f.required}
-                  value={value.fields[f.key] || ""}
-                  onChange={(e) => change(f.key, e.target.value)}
-                >
-                  <option value="">未设置</option>
-                  {f.options.map(([v, label]) => (
-                    <option value={v} key={v}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              ) : f.type === "textarea" ? (
-                <textarea
-                  value={value.fields[f.key] || ""}
-                  onChange={(e) => change(f.key, e.target.value)}
-                />
-              ) : (
-                <input
-                  required={f.required}
-                  type={f.type || "text"}
-                  placeholder={f.placeholder}
-                  value={value.fields[f.key] || ""}
-                  onChange={(e) => change(f.key, e.target.value)}
-                />
-              )}
-            </label>
+          {shown.core.map((f) => (
+            <FieldInput key={f.key} field={f} {...inputProps} />
           ))}
-          <label>
-            资产状态
-            <select
-              value={value.status}
-              onChange={(e) =>
-                setValue({
-                  ...value,
-                  status: e.target.value as Asset["status"],
-                })
-              }
-            >
-              <option value="active">使用中</option>
-              <option value="retired">已退役</option>
-            </select>
-          </label>
         </div>
+        <details className="more-fields" open={moreHasValues}>
+          <summary>更多信息（{shown.more.length + 1} 项，可不填）</summary>
+          <div className="form-grid">
+            {shown.more.map((f) => (
+              <FieldInput key={f.key} field={f} {...inputProps} />
+            ))}
+            <label>
+              资产状态
+              <select
+                value={value.status}
+                onChange={(e) =>
+                  setValue({
+                    ...value,
+                    status: e.target.value as Asset["status"],
+                  })
+                }
+              >
+                <option value="active">使用中</option>
+                <option value="retired">已退役</option>
+              </select>
+            </label>
+          </div>
+        </details>
         {error && (
           <p role="alert" className="form-error">
             {error}

@@ -147,6 +147,12 @@ export type Field_Deserialize = {
 	ref?: string[] | null,
 	required: boolean,
 	placeholder?: string | null,
+	/**  `core` shows in forms by default, `more` sits under "更多信息", `system` is filled by the app. */
+	tier: Tier,
+	/**  Prefill for a new record: a literal, or `$today` / `$self` (the member marked as yourself). */
+	default?: string | null,
+	/**  Show only when another field has a value outside `not_in` (e.g. exchange rate for non-CNY). */
+	when?: When | null,
 };
 
 export type Field_Serialize = {
@@ -157,6 +163,12 @@ export type Field_Serialize = {
 	ref?: string[],
 	required?: boolean,
 	placeholder?: string,
+	/**  `core` shows in forms by default, `more` sits under "更多信息", `system` is filled by the app. */
+	tier: Tier,
+	/**  Prefill for a new record: a literal, or `$today` / `$self` (the member marked as yourself). */
+	default?: string,
+	/**  Show only when another field has a value outside `not_in` (e.g. exchange rate for non-CNY). */
+	when?: When,
 };
 
 export type KindDef = KindDef_Serialize | KindDef_Deserialize;
@@ -288,5 +300,12 @@ export type Source = {
 	warnings: string[],
 };
 
+export type Tier = "core" | "more" | "system";
+
 export type Value = null | boolean | number | string | Value[] | { [key in string]: Value };
+
+export type When = {
+	key: string,
+	not_in: string[],
+};
 

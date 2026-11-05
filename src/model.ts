@@ -56,6 +56,12 @@ export interface Field {
   type?: "date" | "textarea";
   options?: [string, string][];
   ref?: Kind[];
+  /** core: shown by default; more: under "更多信息"; system: filled by the app. */
+  tier: "core" | "more" | "system";
+  /** A literal, or $today / $self. */
+  default?: string;
+  /** Shown only when `key` has a value outside `not_in`. */
+  when?: { key: string; not_in: string[] };
   required?: boolean;
   placeholder?: string;
 }
@@ -271,4 +277,29 @@ export function missingRequired(a: Asset): string[] {
   return fields[a.kind]
     .filter((f) => f.required && !a.fields[f.key])
     .map((f) => f.label.replace(/ \*$/, ""));
+}
+
+/** Whether a field applies given the record's other values (e.g. exchange rate only for foreign currency). */
+export function isVisible(f: Field, a: Asset): boolean {
+  return !f.when || !f.when.not_in.includes(a.fields[f.when.key] || "");
+}
+/** Prefilled fields for a new record of `kind`: today's date, yourself as owner, CNY… */
+export function defaultsFor(kind: Kind, s: Snapshot): Record<string, string> {
+  const me = s.assets.find(
+    (a) =>
+      a.kind === "person" &&
+      a.status === "active" &&
+      a.fields.person_kind === "self",
+  );
+  const out: Record<string, string> = {};
+  for (const f of fields[kind]) {
+    const v =
+      f.default === "$today"
+        ? today()
+        : f.default === "$self"
+          ? me?.id
+          : f.default;
+    if (v) out[f.key] = v;
+  }
+  return out;
 }

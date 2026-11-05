@@ -178,3 +178,16 @@
   border: 1px solid var(--line);
   border-radius: 6px;
 }
+
+/* Optional fields fold away so a form starts short. */
+.more-fields {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.more-fields > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 10px;
+}

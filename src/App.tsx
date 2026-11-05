@@ -47,6 +47,7 @@ import {
   today,
   usageLabel,
   currentAssignments,
+  defaultsFor,
   type Asset,
   type DeletePlan,
   type Kind,
@@ -475,10 +476,7 @@ export default function App() {
         kind,
         name: "",
         status: "active",
-        fields:
-          kind === "assignment"
-            ? { starts_on: today(), usage_role: "primary" }
-            : {},
+        fields: defaultsFor(kind, snapshot),
       },
     });
   const current = snapshot.assets.find((a) => a.id === selected);

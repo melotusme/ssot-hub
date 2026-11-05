@@ -60,52 +60,76 @@
               "other",
               "其他"
             ]
-          ]
-        },
-        {
-          "key": "platform",
-          "label": "平台"
+          ],
+          "tier": "core"
         },
         {
           "key": "model",
-          "label": "型号"
+          "label": "型号",
+          "tier": "core"
         },
         {
           "key": "owner_id",
           "label": "所有者（产权）",
           "ref": [
             "person"
-          ]
+          ],
+          "tier": "core",
+          "default": "$self"
         },
         {
           "key": "location",
           "label": "所在地",
-          "placeholder": "公司 / 家里 / 随身"
+          "placeholder": "公司 / 家里 / 随身",
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
+        },
+        {
+          "key": "platform",
+          "label": "平台",
+          "tier": "more"
         },
         {
           "key": "serial",
-          "label": "序列号 / 资产编号"
+          "label": "序列号 / 资产编号",
+          "tier": "more"
         },
         {
           "key": "mac",
-          "label": "MAC 地址"
+          "label": "MAC 地址",
+          "tier": "more"
         },
         {
           "key": "ip",
-          "label": "最近观测 IP"
-        },
-        {
-          "key": "observed_at",
-          "label": "网络观测时间"
-        },
-        {
-          "key": "evidence",
-          "label": "登记来源"
+          "label": "最近观测 IP",
+          "tier": "more"
         },
         {
           "key": "purchased_on",
           "label": "购买日期",
-          "type": "date"
+          "type": "date",
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
+        },
+        {
+          "key": "observed_at",
+          "label": "网络观测时间",
+          "tier": "system"
+        },
+        {
+          "key": "evidence",
+          "label": "登记来源",
+          "tier": "system"
         },
         {
           "key": "verification",
@@ -127,17 +151,8 @@
               "unknown",
               "待核对"
             ]
-          ]
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          ],
+          "tier": "system"
         }
       ]
     },
@@ -145,6 +160,19 @@
       "kind": "environment",
       "name": "系统环境",
       "fields": [
+        {
+          "key": "device_id",
+          "label": "所在设备",
+          "ref": [
+            "device"
+          ],
+          "tier": "core"
+        },
+        {
+          "key": "os",
+          "label": "操作系统",
+          "tier": "core"
+        },
         {
           "key": "environment_kind",
           "label": "环境类型",
@@ -161,11 +189,19 @@
               "container",
               "容器"
             ]
-          ]
+          ],
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
         },
         {
           "key": "vmid",
-          "label": "虚拟机 / 容器编号"
+          "label": "虚拟机 / 容器编号",
+          "tier": "more"
         },
         {
           "key": "runtime_state",
@@ -183,60 +219,65 @@
               "unknown",
               "未核实"
             ]
-          ]
-        },
-        {
-          "key": "os",
-          "label": "操作系统"
+          ],
+          "tier": "more"
         },
         {
           "key": "version",
-          "label": "系统版本"
-        },
-        {
-          "key": "device_id",
-          "label": "所在设备",
-          "ref": [
-            "device"
-          ]
+          "label": "系统版本",
+          "tier": "more"
         },
         {
           "key": "host_id",
           "label": "宿主环境（VM / 模拟器）",
           "ref": [
             "environment"
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "storage_id",
           "label": "安装硬盘",
           "ref": [
             "storage"
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "partition",
-          "label": "分区 / 卷 / 启动方式"
+          "label": "分区 / 卷 / 启动方式",
+          "tier": "more"
         },
         {
           "key": "mac",
-          "label": "MAC 地址"
+          "label": "MAC 地址",
+          "tier": "more"
         },
         {
           "key": "ip",
-          "label": "最近观测 IP"
-        },
-        {
-          "key": "observed_at",
-          "label": "网络观测时间"
-        },
-        {
-          "key": "evidence",
-          "label": "登记来源"
+          "label": "最近观测 IP",
+          "tier": "more"
         },
         {
           "key": "role",
-          "label": "角色 / 用途"
+          "label": "角色 / 用途",
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
+        },
+        {
+          "key": "observed_at",
+          "label": "网络观测时间",
+          "tier": "system"
+        },
+        {
+          "key": "evidence",
+          "label": "登记来源",
+          "tier": "system"
         },
         {
           "key": "verification",
@@ -258,17 +299,8 @@
               "unknown",
               "待核对"
             ]
-          ]
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          ],
+          "tier": "system"
         }
       ]
     },
@@ -282,7 +314,8 @@
           "ref": [
             "environment"
           ],
-          "required": true
+          "required": true,
+          "tier": "core"
         },
         {
           "key": "source",
@@ -304,53 +337,70 @@
               "other",
               "其他包管理器"
             ]
-          ]
-        },
-        {
-          "key": "manager",
-          "label": "管理器"
-        },
-        {
-          "key": "package_kind",
-          "label": "包类型"
-        },
-        {
-          "key": "version",
-          "label": "版本"
-        },
-        {
-          "key": "commit",
-          "label": "Git commit"
-        },
-        {
-          "key": "branch",
-          "label": "Git 分支"
-        },
-        {
-          "key": "path",
-          "label": "安装路径 / 包标识"
-        },
-        {
-          "key": "repository",
-          "label": "仓库地址"
-        },
-        {
-          "key": "subscription_id",
-          "label": "订阅 / 许可",
-          "ref": [
-            "subscription"
-          ]
+          ],
+          "tier": "core"
         },
         {
           "key": "config_id",
           "label": "配置来源",
           "ref": [
             "config"
-          ]
+          ],
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
+        },
+        {
+          "key": "manager",
+          "label": "管理器",
+          "tier": "more"
+        },
+        {
+          "key": "package_kind",
+          "label": "包类型",
+          "tier": "more"
+        },
+        {
+          "key": "version",
+          "label": "版本",
+          "tier": "more"
+        },
+        {
+          "key": "commit",
+          "label": "Git commit",
+          "tier": "more"
+        },
+        {
+          "key": "branch",
+          "label": "Git 分支",
+          "tier": "more"
+        },
+        {
+          "key": "path",
+          "label": "安装路径 / 包标识",
+          "tier": "more"
+        },
+        {
+          "key": "repository",
+          "label": "仓库地址",
+          "tier": "more"
+        },
+        {
+          "key": "subscription_id",
+          "label": "订阅 / 许可",
+          "ref": [
+            "subscription"
+          ],
+          "tier": "more"
         },
         {
           "key": "license_ref",
-          "label": "许可证保险库引用"
+          "label": "许可证保险库引用",
+          "tier": "more"
         },
         {
           "key": "enabled_state",
@@ -368,7 +418,8 @@
               "unknown",
               "未核实"
             ]
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "runtime_state",
@@ -386,7 +437,14 @@
               "unknown",
               "未核实"
             ]
-          ]
+          ],
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -408,25 +466,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -454,22 +505,38 @@
               "local",
               "本机"
             ]
-          ]
+          ],
+          "tier": "core"
         },
         {
           "key": "authority_ref",
           "label": "权威位置",
-          "placeholder": "仓库 / DAV / 厂商位置，不含凭据"
+          "placeholder": "仓库 / DAV / 厂商位置，不含凭据",
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
         },
         {
           "key": "forbidden_sync",
           "label": "禁止同步项",
-          "type": "textarea"
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "secret_ref",
           "label": "保险库引用",
-          "placeholder": "op://Personal/条目/字段"
+          "placeholder": "op://Personal/条目/字段",
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -491,25 +558,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -519,35 +579,55 @@
       "fields": [
         {
           "key": "provider",
-          "label": "服务商"
+          "label": "服务商",
+          "tier": "core"
+        },
+        {
+          "key": "login_hint",
+          "label": "登录标识",
+          "tier": "core"
         },
         {
           "key": "owner_id",
           "label": "账号归属成员",
           "ref": [
             "person"
-          ]
+          ],
+          "tier": "core",
+          "default": "$self"
         },
         {
-          "key": "login_hint",
-          "label": "登录标识"
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
         },
         {
           "key": "email",
-          "label": "邮箱"
+          "label": "邮箱",
+          "tier": "more"
         },
         {
           "key": "tags",
-          "label": "标签"
+          "label": "标签",
+          "tier": "more"
         },
         {
           "key": "purpose",
-          "label": "用途"
+          "label": "用途",
+          "tier": "more"
         },
         {
           "key": "secret_ref",
           "label": "保险库引用",
-          "placeholder": "op://Personal/条目/字段"
+          "placeholder": "op://Personal/条目/字段",
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -569,25 +649,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -598,28 +671,46 @@
         {
           "key": "number",
           "label": "号码",
-          "placeholder": "+86…"
+          "placeholder": "+86…",
+          "tier": "core"
         },
         {
           "key": "carrier",
-          "label": "运营商"
-        },
-        {
-          "key": "country",
-          "label": "国家 / 地区"
-        },
-        {
-          "key": "owner",
-          "label": "归属"
+          "label": "运营商",
+          "tier": "core"
         },
         {
           "key": "purpose",
-          "label": "用途"
+          "label": "用途",
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
+        },
+        {
+          "key": "country",
+          "label": "国家 / 地区",
+          "tier": "more"
+        },
+        {
+          "key": "owner",
+          "label": "归属",
+          "tier": "more"
         },
         {
           "key": "expires_on",
           "label": "到期日期",
-          "type": "date"
+          "type": "date",
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -641,25 +732,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -669,50 +753,71 @@
       "fields": [
         {
           "key": "carrier",
-          "label": "供应商"
-        },
-        {
-          "key": "channel",
-          "label": "购买渠道"
+          "label": "供应商",
+          "tier": "core"
         },
         {
           "key": "plan",
-          "label": "套餐"
-        },
-        {
-          "key": "country",
-          "label": "国家 / 地区"
+          "label": "套餐",
+          "tier": "core"
         },
         {
           "key": "expires_on",
           "label": "到期日期",
-          "type": "date"
+          "type": "date",
+          "tier": "core"
         },
         {
           "key": "device_id",
           "label": "安装设备",
           "ref": [
             "device"
-          ]
+          ],
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
+        },
+        {
+          "key": "channel",
+          "label": "购买渠道",
+          "tier": "more"
+        },
+        {
+          "key": "country",
+          "label": "国家 / 地区",
+          "tier": "more"
         },
         {
           "key": "account_id",
           "label": "供应商账号",
           "ref": [
             "account"
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "phone_id",
           "label": "关联号码（可空）",
           "ref": [
             "phone"
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "secret_ref",
           "label": "保险库引用",
-          "placeholder": "op://Personal/条目/字段"
+          "placeholder": "op://Personal/条目/字段",
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -734,25 +839,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -760,6 +858,58 @@
       "kind": "subscription",
       "name": "订阅与许可",
       "fields": [
+        {
+          "key": "price",
+          "label": "原币价格",
+          "placeholder": "9.99",
+          "tier": "core"
+        },
+        {
+          "key": "currency",
+          "label": "原币币种",
+          "placeholder": "USD",
+          "tier": "core",
+          "default": "CNY"
+        },
+        {
+          "key": "billing_period",
+          "label": "计费周期",
+          "options": [
+            [
+              "month",
+              "每月"
+            ],
+            [
+              "year",
+              "每年"
+            ],
+            [
+              "once",
+              "一次性"
+            ]
+          ],
+          "tier": "core"
+        },
+        {
+          "key": "expires_on",
+          "label": "到期日期",
+          "type": "date",
+          "tier": "core"
+        },
+        {
+          "key": "account_id",
+          "label": "权益持有账号",
+          "ref": [
+            "account"
+          ],
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
+        },
         {
           "key": "category",
           "label": "订阅类别",
@@ -788,62 +938,27 @@
               "other",
               "其他"
             ]
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "provider",
-          "label": "服务商"
+          "label": "服务商",
+          "tier": "more"
         },
         {
           "key": "owner_id",
           "label": "付费 / 管理成员",
           "ref": [
             "person"
-          ]
-        },
-        {
-          "key": "account_id",
-          "label": "权益持有账号",
-          "ref": [
-            "account"
-          ]
+          ],
+          "tier": "more",
+          "default": "$self"
         },
         {
           "key": "channel",
-          "label": "购买渠道"
-        },
-        {
-          "key": "price",
-          "label": "原币价格",
-          "placeholder": "9.99"
-        },
-        {
-          "key": "currency",
-          "label": "原币币种",
-          "placeholder": "USD"
-        },
-        {
-          "key": "billing_period",
-          "label": "计费周期",
-          "options": [
-            [
-              "month",
-              "每月"
-            ],
-            [
-              "year",
-              "每年"
-            ],
-            [
-              "once",
-              "一次性"
-            ]
-          ]
-        },
-        {
-          "key": "expires_on",
-          "label": "到期日期",
-          "type": "date"
+          "label": "购买渠道",
+          "tier": "more"
         },
         {
           "key": "auto_renew",
@@ -857,27 +972,60 @@
               "no",
               "关闭"
             ]
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "exchange_rate",
           "label": "汇率（1 原币 = 本币）",
-          "placeholder": "7.20"
+          "placeholder": "7.20",
+          "tier": "more",
+          "when": {
+            "key": "currency",
+            "not_in": [
+              "",
+              "CNY"
+            ]
+          }
         },
         {
           "key": "base_currency",
           "label": "本币币种",
-          "placeholder": "CNY"
+          "placeholder": "CNY",
+          "tier": "more",
+          "default": "CNY",
+          "when": {
+            "key": "currency",
+            "not_in": [
+              "",
+              "CNY"
+            ]
+          }
         },
         {
           "key": "rate_date",
           "label": "汇率日期",
-          "type": "date"
+          "type": "date",
+          "tier": "more",
+          "when": {
+            "key": "currency",
+            "not_in": [
+              "",
+              "CNY"
+            ]
+          }
         },
         {
           "key": "secret_ref",
           "label": "保险库引用",
-          "placeholder": "op://Personal/条目/字段"
+          "placeholder": "op://Personal/条目/字段",
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -899,25 +1047,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -945,11 +1086,25 @@
               "organization",
               "公司 / 组织"
             ]
-          ]
+          ],
+          "tier": "core"
         },
         {
           "key": "relationship",
-          "label": "家庭称谓 / 组织说明"
+          "label": "家庭称谓 / 组织说明",
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -971,25 +1126,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -1017,49 +1165,72 @@
               "sd",
               "存储卡"
             ]
-          ]
-        },
-        {
-          "key": "model",
-          "label": "型号"
-        },
-        {
-          "key": "serial",
-          "label": "序列号"
+          ],
+          "tier": "core"
         },
         {
           "key": "capacity",
-          "label": "容量"
-        },
-        {
-          "key": "interface",
-          "label": "接口"
+          "label": "容量",
+          "tier": "core"
         },
         {
           "key": "device_id",
           "label": "安装设备 / 硬盘盒",
           "ref": [
             "device"
-          ]
+          ],
+          "tier": "core"
         },
         {
           "key": "owner_id",
           "label": "所有者（产权）",
           "ref": [
             "person"
-          ]
+          ],
+          "tier": "core",
+          "default": "$self"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
+        },
+        {
+          "key": "model",
+          "label": "型号",
+          "tier": "more"
+        },
+        {
+          "key": "serial",
+          "label": "序列号",
+          "tier": "more"
+        },
+        {
+          "key": "interface",
+          "label": "接口",
+          "tier": "more"
         },
         {
           "key": "location",
-          "label": "所在地"
+          "label": "所在地",
+          "tier": "more"
         },
         {
           "key": "health",
-          "label": "健康状况 / 检测日期"
+          "label": "健康状况 / 检测日期",
+          "tier": "more"
         },
         {
           "key": "backup_ref",
-          "label": "备份位置（无凭据）"
+          "label": "备份位置（无凭据）",
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -1081,25 +1252,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -1110,41 +1274,60 @@
         {
           "key": "hostname",
           "label": "域名",
-          "placeholder": "example.com"
+          "placeholder": "example.com",
+          "tier": "core"
         },
         {
           "key": "registrar",
-          "label": "注册商"
+          "label": "注册商",
+          "tier": "core"
+        },
+        {
+          "key": "expires_on",
+          "label": "到期日期",
+          "type": "date",
+          "tier": "core"
         },
         {
           "key": "account_id",
           "label": "注册账号",
           "ref": [
             "account"
-          ]
+          ],
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
         },
         {
           "key": "server_id",
           "label": "指向服务器",
           "ref": [
             "server"
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "subscription_id",
           "label": "续费记录",
           "ref": [
             "subscription"
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "dns_provider",
-          "label": "DNS 托管商"
+          "label": "DNS 托管商",
+          "tier": "more"
         },
         {
-          "key": "expires_on",
-          "label": "到期日期",
-          "type": "date"
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -1166,25 +1349,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -1194,54 +1370,77 @@
       "fields": [
         {
           "key": "provider",
-          "label": "服务商"
-        },
-        {
-          "key": "region",
-          "label": "地域"
+          "label": "服务商",
+          "tier": "core"
         },
         {
           "key": "ip",
-          "label": "IP / 主机名"
+          "label": "IP / 主机名",
+          "tier": "core"
         },
         {
-          "key": "spec",
-          "label": "CPU / 内存 / 存储"
-        },
-        {
-          "key": "os",
-          "label": "操作系统"
+          "key": "expires_on",
+          "label": "到期日期",
+          "type": "date",
+          "tier": "core"
         },
         {
           "key": "account_id",
           "label": "购买账号",
           "ref": [
             "account"
-          ]
+          ],
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
+        },
+        {
+          "key": "region",
+          "label": "地域",
+          "tier": "more"
+        },
+        {
+          "key": "spec",
+          "label": "CPU / 内存 / 存储",
+          "tier": "more"
+        },
+        {
+          "key": "os",
+          "label": "操作系统",
+          "tier": "more"
         },
         {
           "key": "subscription_id",
           "label": "续费订阅",
           "ref": [
             "subscription"
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "owner_id",
           "label": "所有者",
           "ref": [
             "person"
-          ]
-        },
-        {
-          "key": "expires_on",
-          "label": "到期日期",
-          "type": "date"
+          ],
+          "tier": "more",
+          "default": "$self"
         },
         {
           "key": "secret_ref",
           "label": "保险库引用",
-          "placeholder": "op://Personal/条目/字段"
+          "placeholder": "op://Personal/条目/字段",
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -1263,25 +1462,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -1291,55 +1483,76 @@
       "fields": [
         {
           "key": "provider",
-          "label": "服务 / 框架"
+          "label": "服务 / 框架",
+          "tier": "core"
         },
         {
           "key": "environment_id",
           "label": "部署环境",
           "ref": [
             "environment"
-          ]
+          ],
+          "tier": "core"
+        },
+        {
+          "key": "purpose",
+          "label": "用途",
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
         },
         {
           "key": "server_id",
           "label": "部署服务器",
           "ref": [
             "server"
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "account_id",
           "label": "运行账号",
           "ref": [
             "account"
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "subscription_id",
           "label": "使用订阅",
           "ref": [
             "subscription"
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "config_id",
           "label": "配置来源",
           "ref": [
             "config"
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "endpoint",
-          "label": "访问入口（无密钥）"
-        },
-        {
-          "key": "purpose",
-          "label": "用途"
+          "label": "访问入口（无密钥）",
+          "tier": "more"
         },
         {
           "key": "secret_ref",
           "label": "保险库引用",
-          "placeholder": "op://Personal/条目/字段"
+          "placeholder": "op://Personal/条目/字段",
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -1361,25 +1574,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -1393,61 +1599,88 @@
           "ref": [
             "person"
           ],
-          "required": true
+          "required": true,
+          "tier": "core"
         },
         {
           "key": "institution",
-          "label": "机构"
+          "label": "机构",
+          "tier": "core"
         },
         {
-          "key": "subject",
-          "label": "科目 / 班级"
+          "key": "lessons_total",
+          "label": "购买课时",
+          "tier": "core"
         },
         {
-          "key": "teacher",
-          "label": "老师"
-        },
-        {
-          "key": "schedule",
-          "label": "排课时间"
-        },
-        {
-          "key": "location",
-          "label": "上课地点"
-        },
-        {
-          "key": "starts_on",
-          "label": "开始日期",
-          "type": "date"
+          "key": "lessons_used",
+          "label": "已用课时",
+          "tier": "core"
         },
         {
           "key": "expires_on",
           "label": "到期日期",
-          "type": "date"
+          "type": "date",
+          "tier": "core"
         },
         {
-          "key": "lessons_total",
-          "label": "购买课时"
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
         },
         {
-          "key": "lessons_used",
-          "label": "已用课时"
+          "key": "subject",
+          "label": "科目 / 班级",
+          "tier": "more"
+        },
+        {
+          "key": "teacher",
+          "label": "老师",
+          "tier": "more"
+        },
+        {
+          "key": "schedule",
+          "label": "排课时间",
+          "tier": "more"
+        },
+        {
+          "key": "location",
+          "label": "上课地点",
+          "tier": "more"
+        },
+        {
+          "key": "starts_on",
+          "label": "开始日期",
+          "type": "date",
+          "tier": "more",
+          "default": "$today"
         },
         {
           "key": "price",
-          "label": "报名费用"
+          "label": "报名费用",
+          "tier": "more"
         },
         {
           "key": "currency",
           "label": "币种",
-          "placeholder": "CNY"
+          "placeholder": "CNY",
+          "tier": "more",
+          "default": "CNY"
         },
         {
           "key": "account_id",
           "label": "报名账号",
           "ref": [
             "account"
-          ]
+          ],
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -1469,25 +1702,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -1503,7 +1729,8 @@
             "storage",
             "server"
           ],
-          "required": true
+          "required": true,
+          "tier": "core"
         },
         {
           "key": "person_id",
@@ -1511,7 +1738,8 @@
           "ref": [
             "person"
           ],
-          "required": true
+          "required": true,
+          "tier": "core"
         },
         {
           "key": "usage_role",
@@ -1534,22 +1762,40 @@
               "借用"
             ]
           ],
-          "required": true
+          "required": true,
+          "tier": "core",
+          "default": "primary"
         },
         {
           "key": "starts_on",
           "label": "开始日期 *",
           "type": "date",
-          "required": true
+          "required": true,
+          "tier": "core",
+          "default": "$today"
         },
         {
           "key": "ends_on",
           "label": "结束日期（不含当日，空为持续使用）",
-          "type": "date"
+          "type": "date",
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
         },
         {
           "key": "location",
-          "label": "使用地点"
+          "label": "使用地点",
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -1571,25 +1817,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -1621,11 +1860,19 @@
               "other",
               "其他"
             ]
-          ]
+          ],
+          "tier": "core"
         },
         {
           "key": "platform",
-          "label": "适用平台"
+          "label": "适用平台",
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
         },
         {
           "key": "distribution",
@@ -1647,11 +1894,19 @@
               "other",
               "其他"
             ]
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "version",
-          "label": "版本 / 批次"
+          "label": "版本 / 批次",
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -1673,25 +1928,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -1705,7 +1953,8 @@
           "ref": [
             "resource"
           ],
-          "required": true
+          "required": true,
+          "tier": "core"
         },
         {
           "key": "holder_id",
@@ -1715,11 +1964,13 @@
             "device",
             "account"
           ],
-          "required": true
+          "required": true,
+          "tier": "core"
         },
         {
           "key": "path",
-          "label": "目录 / 卷 / 云端位置（不含凭据）"
+          "label": "目录 / 卷 / 云端位置（不含凭据）",
+          "tier": "core"
         },
         {
           "key": "copy_role",
@@ -1741,14 +1992,22 @@
               "archive",
               "归档"
             ]
-          ]
+          ],
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
         },
         {
           "key": "environment_id",
           "label": "使用 / 安装环境",
           "ref": [
             "environment"
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "content_state",
@@ -1766,11 +2025,19 @@
               "unknown",
               "尚未核实"
             ]
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "checksum",
-          "label": "校验值（可空）"
+          "label": "校验值（可空）",
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -1792,25 +2059,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -1846,36 +2106,54 @@
               "other",
               "其他"
             ]
-          ]
-        },
-        {
-          "key": "network_code",
-          "label": "网络标识（非密钥）"
-        },
-        {
-          "key": "network_range",
-          "label": "网段"
+          ],
+          "tier": "core"
         },
         {
           "key": "account_id",
           "label": "管理账号",
           "ref": [
             "account"
-          ]
+          ],
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
+        },
+        {
+          "key": "network_code",
+          "label": "网络标识（非密钥）",
+          "tier": "more"
+        },
+        {
+          "key": "network_range",
+          "label": "网段",
+          "tier": "more"
         },
         {
           "key": "config_id",
           "label": "配置来源",
           "ref": [
             "config"
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "subscription_id",
           "label": "相关订阅",
           "ref": [
             "subscription"
-          ]
+          ],
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -1897,25 +2175,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     },
@@ -1929,7 +2200,8 @@
           "ref": [
             "network"
           ],
-          "required": true
+          "required": true,
+          "tier": "core"
         },
         {
           "key": "node_id",
@@ -1938,14 +2210,27 @@
             "device",
             "environment"
           ],
-          "required": true
+          "required": true,
+          "tier": "core"
+        },
+        {
+          "key": "node_address",
+          "label": "节点地址 / 虚拟 IP",
+          "tier": "core"
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "textarea",
+          "tier": "core"
         },
         {
           "key": "software_id",
           "label": "使用的软件安装",
           "ref": [
             "software"
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "enabled_state",
@@ -1963,19 +2248,18 @@
               "unknown",
               "未核实"
             ]
-          ]
-        },
-        {
-          "key": "node_address",
-          "label": "节点地址 / 虚拟 IP"
+          ],
+          "tier": "more"
         },
         {
           "key": "advertised_routes",
-          "label": "发布路由 / 内网网段"
+          "label": "发布路由 / 内网网段",
+          "tier": "more"
         },
         {
           "key": "endpoint",
-          "label": "访问入口（不含密钥）"
+          "label": "访问入口（不含密钥）",
+          "tier": "more"
         },
         {
           "key": "probe_state",
@@ -1993,11 +2277,19 @@
               "untested",
               "未测试"
             ]
-          ]
+          ],
+          "tier": "more"
         },
         {
           "key": "probe_at",
-          "label": "连通性测试时间（ISO 8601）"
+          "label": "连通性测试时间（ISO 8601）",
+          "tier": "more"
+        },
+        {
+          "key": "review_note",
+          "label": "待确认 / 盘点缺口",
+          "type": "textarea",
+          "tier": "more"
         },
         {
           "key": "verification",
@@ -2019,25 +2311,18 @@
               "unknown",
               "待核对"
             ]
-          ]
+          ],
+          "tier": "system"
         },
         {
           "key": "evidence",
-          "label": "证据 / 登记来源"
+          "label": "证据 / 登记来源",
+          "tier": "system"
         },
         {
           "key": "observed_at",
-          "label": "资料观测时间（ISO 8601）"
-        },
-        {
-          "key": "review_note",
-          "label": "待确认 / 盘点缺口",
-          "type": "textarea"
-        },
-        {
-          "key": "notes",
-          "label": "备注",
-          "type": "textarea"
+          "label": "资料观测时间（ISO 8601）",
+          "tier": "system"
         }
       ]
     }

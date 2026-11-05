@@ -19,6 +19,28 @@ pub struct Field {
     pub required: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub placeholder: Option<&'static str>,
+    /// `core` shows in forms by default, `more` sits under "更多信息", `system` is filled by the app.
+    pub tier: Tier,
+    /// Prefill for a new record: a literal, or `$today` / `$self` (the member marked as yourself).
+    #[serde(rename = "default", skip_serializing_if = "Option::is_none")]
+    pub default_value: Option<&'static str>,
+    /// Show only when another field has a value outside `not_in` (e.g. exchange rate for non-CNY).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub when: Option<When>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum Tier {
+    Core,
+    More,
+    System,
+}
+
+#[derive(Clone, Debug, Serialize, specta::Type)]
+pub struct When {
+    pub key: &'static str,
+    pub not_in: Vec<&'static str>,
 }
 
 impl Field {
@@ -60,6 +82,9 @@ fn f(key: &'static str, label: &'static str) -> Field {
         refs: None,
         required: false,
         placeholder: None,
+        tier: Tier::More,
+        default_value: None,
+        when: None,
     }
 }
 
@@ -495,9 +520,72 @@ fn build() -> Schema {
             }
         }
     }
+    apply_tiers(&mut kinds);
     Schema {
         kinds,
         verification: VERIFICATION.to_vec(),
+    }
+}
+
+/// Fields shown by default for each kind; everything else goes under "更多信息".
+const CORE: &[(&str, &[&str])] = &[
+    ("device", &["device_kind", "model", "owner_id", "location"]),
+    ("environment", &["device_id", "os", "environment_kind"]),
+    ("software", &["environment_id", "source", "config_id"]),
+    ("config", &["authority", "authority_ref"]),
+    ("account", &["provider", "login_hint", "owner_id"]),
+    ("phone", &["number", "carrier", "purpose"]),
+    ("esim", &["carrier", "plan", "expires_on", "device_id"]),
+    ("subscription", &["price", "currency", "billing_period", "expires_on", "account_id"]),
+    ("person", &["person_kind", "relationship"]),
+    ("storage", &["storage_kind", "capacity", "device_id", "owner_id"]),
+    ("domain", &["hostname", "registrar", "expires_on", "account_id"]),
+    ("server", &["provider", "ip", "expires_on", "account_id"]),
+    ("agent", &["provider", "environment_id", "purpose"]),
+    ("course", &["person_id", "institution", "lessons_total", "lessons_used", "expires_on"]),
+    ("assignment", &["asset_id", "person_id", "usage_role", "starts_on", "ends_on"]),
+    ("resource", &["resource_kind", "platform"]),
+    ("copy", &["resource_id", "holder_id", "path", "copy_role"]),
+    ("network", &["technology", "account_id"]),
+    ("connection", &["network_id", "node_id", "node_address"]),
+];
+/// Filled by the app (where the record came from), never asked in forms.
+const SYSTEM: &[&str] = &["verification", "evidence", "observed_at"];
+/// Always shown: free notes.
+const ALWAYS: &[&str] = &["notes"];
+const DEFAULTS: &[(&str, &str)] = &[
+    ("owner_id", "$self"),
+    ("starts_on", "$today"),
+    ("currency", "CNY"),
+    ("base_currency", "CNY"),
+    ("usage_role", "primary"),
+];
+/// Exchange-rate fields only matter when paying in a foreign currency.
+const FOREIGN_CURRENCY_ONLY: &[&str] = &["exchange_rate", "base_currency", "rate_date"];
+
+fn apply_tiers(kinds: &mut [KindDef]) {
+    for k in kinds {
+        let core = CORE.iter().find(|(kind, _)| *kind == k.kind).map_or(&[][..], |(_, c)| *c);
+        for field in &mut k.fields {
+            field.tier = if SYSTEM.contains(&field.key) {
+                Tier::System
+            } else if core.contains(&field.key) || ALWAYS.contains(&field.key) || field.required {
+                Tier::Core
+            } else {
+                Tier::More
+            };
+            field.default_value = DEFAULTS.iter().find(|(key, _)| *key == field.key).map(|(_, v)| *v);
+            if FOREIGN_CURRENCY_ONLY.contains(&field.key) {
+                field.when = Some(When { key: "currency", not_in: vec!["", "CNY"] });
+            }
+        }
+        // Core fields first, in the order listed in CORE; notes last.
+        k.fields.sort_by_key(|field| match field.tier {
+            Tier::Core if ALWAYS.contains(&field.key) => (1, usize::MAX),
+            Tier::Core => (0, core.iter().position(|c| *c == field.key).unwrap_or(usize::MAX - 1)),
+            Tier::More => (2, 0),
+            Tier::System => (3, 0),
+        });
     }
 }
 
@@ -534,6 +622,23 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn every_kind_has_a_short_core_and_system_fields_are_hidden() {
+        for k in &schema().kinds {
+            let core = k.fields.iter().filter(|f| f.tier == Tier::Core && f.key != "notes").count();
+            assert!((1..=5).contains(&core), "{} 有 {core} 个核心字段", k.kind);
+            assert!(CORE.iter().any(|(kind, _)| *kind == k.kind), "{} 未列核心字段", k.kind);
+            for (kind, keys) in CORE.iter().filter(|(kind, _)| *kind == k.kind) {
+                for key in *keys {
+                    assert!(k.fields.iter().any(|f| f.key == *key), "{kind}.{key} 不存在");
+                }
+            }
+            assert!(k.fields.iter().filter(|f| SYSTEM.contains(&f.key)).all(|f| f.tier == Tier::System));
+        }
+        let rate = field("subscription", "exchange_rate").unwrap();
+        assert_eq!(rate.when.as_ref().unwrap().key, "currency");
     }
 
     /// Frontend tests read this fixture instead of calling the backend.
