@@ -611,6 +611,33 @@ pub fn apply_batch(c: &mut Connection, assets: Vec<Asset>, revision: u64) -> Res
     Ok(s)
 }
 
+/// Insert new assets only; any id already in the ledger is refused, so nothing is overwritten.
+pub fn create_batch(
+    c: &mut Connection,
+    assets: Vec<Asset>,
+    revision: u64,
+    action: &str,
+) -> Result<Snapshot> {
+    if assets.is_empty() {
+        return Err("没有选择要登记的条目".into());
+    }
+    let tx = c
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(error)?;
+    let mut s = read(&tx)?;
+    check_revision(&s, revision)?;
+    if assets.iter().any(|a| s.assets.iter().any(|x| x.id == a.id)) {
+        return Err("条目已存在，不能重复登记".into());
+    }
+    let names: Vec<String> = assets.iter().map(|a| a.name.clone()).collect();
+    s.assets.extend(assets);
+    validate(&s)?;
+    event(&mut s, action, serde_json::json!({ "created": names }).to_string());
+    persist(&tx, &mut s)?;
+    tx.commit().map_err(error)?;
+    Ok(s)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -781,6 +808,17 @@ mod tests {
             ..with(asset("d", "device"), &[("expires_on", "2027-01-01"), ("purpose", "x")])
         };
         assert!(validate(&snapshot(vec![legacy])).is_ok());
+    }
+    #[test]
+    fn create_batch_is_insert_only_and_atomic() {
+        let mut c = db();
+        let s = create_batch(&mut c, vec![asset("p", "person")], 0, "ai_import").unwrap();
+        assert_eq!(s.events.last().unwrap().action, "ai_import");
+        assert!(create_batch(&mut c, vec![asset("p", "person")], s.revision, "ai_import").is_err());
+        let mut bad = asset("d", "device");
+        bad.fields.insert("owner_id".into(), "missing".into());
+        assert!(create_batch(&mut c, vec![asset("ok", "person"), bad], s.revision, "ai_import").is_err());
+        assert_eq!(read(&c).unwrap().assets.len(), 1);
     }
     #[test]
     fn transfer_is_atomic_preserves_history_and_rejects_stale_writes() {

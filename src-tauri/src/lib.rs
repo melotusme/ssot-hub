@@ -1,3 +1,4 @@
+mod ai;
 mod dav_connection;
 mod importers;
 mod schema;
@@ -383,6 +384,14 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             shortcut_save,
             shortcut_create_ahk,
             shortcut_application,
+            ai::ai_settings,
+            ai::ai_save_provider,
+            ai::ai_remove_provider,
+            ai::ai_set_active,
+            ai::ai_models,
+            ai::ai_connect_magpie,
+            ai::ai_extract,
+            ai::ai_apply,
         ])
 }
 fn bindings_path() -> PathBuf {

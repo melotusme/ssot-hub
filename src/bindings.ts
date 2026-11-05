@@ -38,9 +38,46 @@ export const commands = {
 	shortcut_save: (path: string, revision: string, change: Change_Deserialize) => __TAURI_INVOKE<Source>("shortcut_save", { path, revision, change }),
 	shortcut_create_ahk: (path: string) => __TAURI_INVOKE<Source>("shortcut_create_ahk", { path }),
 	shortcut_application: (path: string) => __TAURI_INVOKE<[string, string]>("shortcut_application", { path }),
+	ai_settings: () => __TAURI_INVOKE<AiSettings_Serialize>("ai_settings"),
+	/**  `api_key`: omit to keep the stored key, "" to remove it. */
+	ai_save_provider: (provider: Provider_Deserialize, apiKey: string | null) => __TAURI_INVOKE<AiSettings_Serialize>("ai_save_provider", { provider, apiKey }),
+	ai_remove_provider: (id: string) => __TAURI_INVOKE<AiSettings_Serialize>("ai_remove_provider", { id }),
+	ai_set_active: (id: string) => __TAURI_INVOKE<AiSettings_Serialize>("ai_set_active", { id }),
+	/**  Models offered by a saved provider; also serves as a connection test. */
+	ai_models: (id: string) => __TAURI_INVOKE<string[]>("ai_models", { id }),
+	/**
+	 *  One click: find the local Magpie gateway, pick a chat model and make it the active service.
+	 *  Magpie needs no key from this machine and its own configuration is not changed.
+	 */
+	ai_connect_magpie: () => __TAURI_INVOKE<MagpieConnection_Serialize>("ai_connect_magpie"),
+	/**
+	 *  Ask the active AI service for drafts. Sends the given text and images plus the id, type and
+	 *  name of existing assets; nothing is written.
+	 */
+	ai_extract: (text: string, images: string[], kindHint: string | null) => __TAURI_INVOKE<Extraction>("ai_extract", { text, images, kindHint }),
+	/**  Register confirmed drafts as new assets in one transaction. */
+	ai_apply: (assets: Asset[], revision: number) => __TAURI_INVOKE<Snapshot>("ai_apply", { assets, revision }),
 };
 
 /* Types */
+export type AiSettings = AiSettings_Serialize | AiSettings_Deserialize;
+
+export type AiSettings_Deserialize = {
+	providers: Provider_Deserialize[],
+	active?: string | null,
+};
+
+export type AiSettings_Serialize = {
+	providers: Provider_Serialize[],
+	active: string | null,
+};
+
+export type ApiKind = 
+/**  OpenAI-compatible Chat Completions: OpenAI, Magpie, DeepSeek, OpenRouter, Ollama… */
+"openai" | 
+/**  Anthropic Messages API. */
+"anthropic";
+
 export type Asset = {
 	id: string,
 	kind: string,
@@ -77,6 +114,13 @@ export type DeletePlan = {
 	blockers: string[],
 };
 
+export type Draft = {
+	asset: Asset,
+	warnings: string[],
+	/**  Required fields are filled; false drafts need editing before they can be saved. */
+	ready: boolean,
+};
+
 export type EngineName = "hammerspoon" | "ahk_v2";
 
 export type Event = {
@@ -85,6 +129,12 @@ export type Event = {
 	actor: string,
 	action: string,
 	detail: string,
+};
+
+export type Extraction = {
+	drafts: Draft[],
+	notes: string[],
+	model: string,
 };
 
 export type Field = Field_Serialize | Field_Deserialize;
@@ -130,6 +180,18 @@ export type Link = {
 	relation: string,
 };
 
+export type MagpieConnection = MagpieConnection_Serialize | MagpieConnection_Deserialize;
+
+export type MagpieConnection_Deserialize = {
+	settings: AiSettings_Deserialize,
+	models: string[],
+};
+
+export type MagpieConnection_Serialize = {
+	settings: AiSettings_Serialize,
+	models: string[],
+};
+
 export type Preview = {
 	revision: string,
 	before: string,
@@ -140,6 +202,34 @@ export type Preview = {
 export type Profile = {
 	url: string,
 	username: string,
+};
+
+export type Provider = Provider_Serialize | Provider_Deserialize;
+
+export type Provider_Deserialize = {
+	id: string,
+	name: string,
+	api: ApiKind,
+	/**  Includes the version path, e.g. `https://api.openai.com/v1`. */
+	base_url: string,
+	model: string,
+	/**  Set by the backend; a key stored in the keychain. */
+	has_key?: boolean,
+	/**  `magpie` for the one-click local gateway. */
+	source?: string | null,
+};
+
+export type Provider_Serialize = {
+	id: string,
+	name: string,
+	api: ApiKind,
+	/**  Includes the version path, e.g. `https://api.openai.com/v1`. */
+	base_url: string,
+	model: string,
+	/**  Set by the backend; a key stored in the keychain. */
+	has_key: boolean,
+	/**  `magpie` for the one-click local gateway. */
+	source: string | null,
 };
 
 export type Response = Response_Serialize | Response_Deserialize;

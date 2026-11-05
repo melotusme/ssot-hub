@@ -253,3 +253,22 @@ export function demo(): Snapshot {
     ],
   };
 }
+
+/** An AI-proposed asset, already checked against the schema by the backend. */
+export interface AiDraft {
+  asset: Asset;
+  warnings: string[];
+  /** Required fields are filled. */
+  ready: boolean;
+}
+export interface AiExtraction {
+  drafts: AiDraft[];
+  notes: string[];
+  model: string;
+}
+/** Required fields that are still empty. */
+export function missingRequired(a: Asset): string[] {
+  return fields[a.kind]
+    .filter((f) => f.required && !a.fields[f.key])
+    .map((f) => f.label.replace(/ \*$/, ""));
+}
