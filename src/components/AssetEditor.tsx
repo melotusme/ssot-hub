@@ -53,21 +53,21 @@ export function ModalFrame({
 }
 interface FieldInputProps {
   field: Field;
-  value: Asset;
+  values: Record<string, string>;
   assets: Asset[];
   /** The record being edited; it cannot reference itself. */
   self: string;
   change: (key: string, v: string) => void;
 }
 /** One schema field rendered as the matching control. */
-function FieldInput({
+export function FieldInput({
   field: f,
-  value,
+  values,
   assets,
   self,
   change,
 }: FieldInputProps) {
-  const current = value.fields[f.key] || "";
+  const current = values[f.key] || "";
   return (
     <label className={f.type === "textarea" ? "wide" : ""}>
       {f.label}
@@ -150,7 +150,7 @@ export function AssetEditor({
     shown.more.some(
       (f) => !!asset.fields[f.key] && asset.fields[f.key] !== defaults[f.key],
     );
-  const inputProps = { value, assets, self: asset.id, change };
+  const inputProps = { values: value.fields, assets, self: asset.id, change };
   return (
     <ModalFrame
       title={

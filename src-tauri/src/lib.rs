@@ -1,10 +1,12 @@
 mod ai;
 mod dav_connection;
 mod importers;
+mod migrate;
 mod schema;
 mod shortcuts;
 mod store;
 mod sync;
+mod validate;
 use std::{path::PathBuf, sync::Mutex};
 use store::{Asset, DeletePlan, Link, Snapshot};
 use tauri::Manager;
@@ -23,9 +25,9 @@ fn schema() -> schema::Schema {
 /// Validate a decrypted or file snapshot before the UI previews it.
 #[tauri::command]
 #[specta::specta]
-fn check_snapshot(snapshot: Snapshot) -> Result<Snapshot> {
-    store::validate(&snapshot)?;
-    Ok(snapshot)
+fn check_snapshot(snapshot: serde_json::Value) -> Result<Snapshot> {
+    // Older versions arrive from sync files too; upgrade them before the preview.
+    store::parse(&snapshot.to_string())
 }
 #[tauri::command]
 #[specta::specta]
@@ -39,13 +41,16 @@ fn save_asset(state: tauri::State<AppState>, asset: Asset, revision: u64) -> Res
 }
 #[tauri::command]
 #[specta::specta]
-fn transfer_asset(
+/// End the open `uses` relation `id` and start one for `person_id` on `starts_on`.
+fn transfer_use(
     state: tauri::State<AppState>,
     id: String,
-    next: Asset,
+    person_id: String,
+    starts_on: String,
+    usage_role: Option<String>,
     revision: u64,
 ) -> Result<Snapshot> {
-    store::transfer(&mut connect(&state)?, &id, next, revision)
+    store::transfer_use(&mut connect(&state)?, &id, &person_id, &starts_on, usage_role, revision)
 }
 #[tauri::command]
 #[specta::specta]
@@ -162,11 +167,7 @@ fn export_snapshot(state: tauri::State<AppState>, path: String) -> Result<()> {
 #[tauri::command]
 #[specta::specta]
 fn preview_snapshot(path: String) -> Result<Snapshot> {
-    let s: Snapshot =
-        serde_json::from_str(&std::fs::read_to_string(path).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
-    store::validate(&s)?;
-    Ok(s)
+    store::parse(&std::fs::read_to_string(path).map_err(|e| e.to_string())?)
 }
 #[tauri::command]
 #[specta::specta]
@@ -357,7 +358,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             check_snapshot,
             load,
             save_asset,
-            transfer_asset,
+            transfer_use,
             save_link,
             remove_link,
             delete_plan,

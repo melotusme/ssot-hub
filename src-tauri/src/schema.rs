@@ -92,12 +92,25 @@ fn f(key: &'static str, label: &'static str) -> Field {
 pub struct KindDef {
     pub kind: &'static str,
     pub name: &'static str,
+    /// Sidebar group.
+    pub group: &'static str,
     pub fields: Vec<Field>,
+}
+
+/// A typed relation between two assets, optionally with attributes and a time span.
+#[derive(Clone, Debug, Serialize, specta::Type)]
+pub struct RelationDef {
+    pub relation: &'static str,
+    pub name: &'static str,
+    pub from: Vec<&'static str>,
+    pub to: Vec<&'static str>,
+    pub attrs: Vec<Field>,
 }
 
 #[derive(Clone, Debug, Serialize, specta::Type)]
 pub struct Schema {
     pub kinds: Vec<KindDef>,
+    pub relations: Vec<RelationDef>,
     pub verification: Options,
 }
 
@@ -135,74 +148,96 @@ fn observed() -> [Field; 3] {
     ]
 }
 
-fn kind(kind: &'static str, name: &'static str, fields: Vec<Field>) -> KindDef {
-    KindDef { kind, name, fields }
+fn kind(kind: &'static str, name: &'static str, group: &'static str, fields: Vec<Field>) -> KindDef {
+    KindDef {
+        kind,
+        name,
+        group,
+        fields,
+    }
 }
+
+const TECHNOLOGY: &[(&str, &str)] = &[
+    ("zerotier", "ZeroTier"),
+    ("tailscale", "Tailscale"),
+    ("frp", "FRP"),
+    ("cloudflare", "Cloudflare Tunnel"),
+    ("lan", "局域网"),
+    ("other", "其他"),
+];
 
 fn build() -> Schema {
     let mut kinds = vec![
-        kind("device", "设备", {
+        kind("device", "设备", "设备", {
             let mut v = vec![
-                f("device_kind", "设备类型").options(&[
+                f("device_kind", "种类").options(&[
                     ("computer", "电脑"),
+                    ("laptop", "笔记本电脑"),
                     ("phone", "手机"),
                     ("tablet", "平板"),
-                    ("laptop", "笔记本电脑"),
                     ("mini_pc", "迷你主机"),
+                    ("nas", "实体 NAS"),
+                    ("router", "路由器 / 网络设备"),
                     ("esp32", "ESP32 / 开发板"),
                     ("projector", "投影设备 / 投影手机"),
-                    ("router", "路由器 / 网络设备"),
-                    ("enclosure", "硬盘盒"),
-                    ("nas", "实体 NAS"),
                     ("console", "游戏主机"),
                     ("cartridge", "游戏卡 / 米格卡"),
+                    ("ssd", "固态硬盘"),
+                    ("hdd", "机械硬盘"),
+                    ("usb", "U 盘"),
+                    ("sd", "存储卡"),
+                    ("enclosure", "硬盘盒"),
                     ("other", "其他"),
                 ]),
-                f("platform", "平台"),
                 f("model", "型号"),
                 f("owner_id", "所有者（产权）").refs(&["person"]),
                 f("location", "所在地").placeholder("公司 / 家里 / 随身"),
+                f("platform", "平台"),
+                f("parent_id", "装在哪台设备 / 硬盘盒").refs(&["device"]),
+                f("capacity", "容量"),
+                f("interface", "接口"),
                 f("serial", "序列号 / 资产编号"),
+                f("health", "健康状况 / 检测日期"),
+                f("backup_ref", "备份位置（无凭据）"),
             ];
             v.extend(observed());
-            v.push(f("evidence", "登记来源"));
             v.push(f("purchased_on", "购买日期").date());
             v
         }),
-        kind("environment", "系统环境", {
+        kind("environment", "系统", "系统与软件", {
             let mut v = vec![
-                f("environment_kind", "环境类型").options(&[
+                f("device_id", "所在设备").refs(&["device"]),
+                f("os", "操作系统"),
+                f("environment_kind", "类型").options(&[
                     ("physical", "实体机系统"),
                     ("vm", "虚拟机"),
                     ("container", "容器"),
                 ]),
+                f("version", "系统版本"),
+                f("host_id", "宿主系统（VM / 模拟器）").refs(&["environment"]),
+                f("storage_id", "安装在哪块硬盘").refs(&["device"]),
+                f("partition", "分区 / 卷 / 启动方式"),
                 f("vmid", "虚拟机 / 容器编号"),
                 f("runtime_state", "观测运行状态").options(RUN_STATE),
-                f("os", "操作系统"),
-                f("version", "系统版本"),
-                f("device_id", "所在设备").refs(&["device"]),
-                f("host_id", "宿主环境（VM / 模拟器）").refs(&["environment"]),
-                f("storage_id", "安装硬盘").refs(&["storage"]),
-                f("partition", "分区 / 卷 / 启动方式"),
             ];
             v.extend(observed());
-            v.push(f("evidence", "登记来源"));
             v.push(f("role", "角色 / 用途"));
             v
         }),
         kind(
             "software",
-            "软件安装",
+            "软件",
+            "系统与软件",
             vec![
-                f("environment_id", "所属系统环境 *")
-                    .refs(&["environment"])
-                    .required(),
+                f("environment_id", "所在系统 *").refs(&["environment"]).required(),
                 f("source", "安装来源").options(&[
                     ("brew", "Homebrew"),
                     ("git", "Git 仓库"),
                     ("app", "桌面 App"),
                     ("other", "其他包管理器"),
                 ]),
+                f("config_id", "配置来源").refs(&["config"]),
+                f("subscription_id", "订阅 / 许可").refs(&["subscription"]),
                 f("manager", "管理器"),
                 f("package_kind", "包类型"),
                 f("version", "版本"),
@@ -210,222 +245,145 @@ fn build() -> Schema {
                 f("branch", "Git 分支"),
                 f("path", "安装路径 / 包标识"),
                 f("repository", "仓库地址"),
-                f("subscription_id", "订阅 / 许可").refs(&["subscription"]),
-                f("config_id", "配置来源").refs(&["config"]),
                 f("license_ref", "许可证保险库引用"),
                 f("enabled_state", "启用 / 自启配置").options(ENABLED_STATE),
                 f("runtime_state", "观测运行状态").options(RUN_STATE),
-            ],
-        ),
-        kind(
-            "config",
-            "配置来源",
-            vec![
-                f("authority", "权威类型").options(&[
-                    ("git", "Git"),
-                    ("dav", "WebDAV"),
-                    ("vendor", "厂商云"),
-                    ("local", "本机"),
-                ]),
-                f("authority_ref", "权威位置").placeholder("仓库 / DAV / 厂商位置，不含凭据"),
-                f("forbidden_sync", "禁止同步项").textarea(),
-                secret(),
+                // Scans list everything installed; only software you mark as followed shows in the main list.
+                f("tracked", "关注").options(&[("yes", "关注")]),
             ],
         ),
         kind(
             "account",
-            "身份账号",
+            "账号",
+            "账号",
             vec![
-                f("provider", "服务商"),
-                f("owner_id", "账号归属成员").refs(&["person"]),
+                f("account_kind", "种类").options(&[("identity", "身份账号"), ("phone", "手机号码")]),
+                f("provider", "服务商 / 运营商"),
                 f("login_hint", "登录标识"),
+                f("owner_id", "归属成员").refs(&["person"]),
                 f("email", "邮箱"),
-                f("tags", "标签"),
-                f("purpose", "用途"),
-                secret(),
-            ],
-        ),
-        kind(
-            "phone",
-            "手机号码",
-            vec![
                 f("number", "号码").placeholder("+86…"),
                 f("carrier", "运营商"),
                 f("country", "国家 / 地区"),
-                f("owner", "归属"),
+                f("tags", "标签"),
                 f("purpose", "用途"),
                 expires(),
-            ],
-        ),
-        kind(
-            "esim",
-            "eSIM 套餐",
-            vec![
-                f("carrier", "供应商"),
-                f("channel", "购买渠道"),
-                f("plan", "套餐"),
-                f("country", "国家 / 地区"),
-                expires(),
-                f("device_id", "安装设备").refs(&["device"]),
-                f("account_id", "供应商账号").refs(&["account"]),
-                f("phone_id", "关联号码（可空）").refs(&["phone"]),
                 secret(),
             ],
         ),
         kind(
             "subscription",
-            "订阅与许可",
+            "订阅",
+            "订阅与服务",
             vec![
-                f("category", "订阅类别").options(&[
-                    ("software", "软件"),
-                    ("ai", "AI / Claude / Grok"),
-                    ("proxy", "科学上网"),
-                    ("hosting", "服务器"),
-                    ("cloud_storage", "网盘 / 云存储"),
-                    ("other", "其他"),
-                ]),
-                f("provider", "服务商"),
-                f("owner_id", "付费 / 管理成员").refs(&["person"]),
-                f("account_id", "权益持有账号").refs(&["account"]),
-                f("channel", "购买渠道"),
-                f("price", "原币价格").placeholder("9.99"),
-                f("currency", "原币币种").placeholder("USD"),
+                f("price", "价格").placeholder("9.99"),
+                f("currency", "币种").placeholder("CNY"),
                 f("billing_period", "计费周期").options(&[
                     ("month", "每月"),
                     ("year", "每年"),
                     ("once", "一次性"),
                 ]),
                 expires(),
+                f("account_id", "付费账号").refs(&["account"]),
+                f("category", "类别").options(&[
+                    ("software", "软件"),
+                    ("ai", "AI / Claude / Grok"),
+                    ("proxy", "科学上网"),
+                    ("hosting", "服务器"),
+                    ("cloud_storage", "网盘 / 云存储"),
+                    ("telecom", "通信套餐 / eSIM"),
+                    ("other", "其他"),
+                ]),
+                f("provider", "服务商"),
+                f("owner_id", "付费 / 管理成员").refs(&["person"]),
                 f("auto_renew", "自动续费").options(&[("yes", "开启"), ("no", "关闭")]),
+                f("channel", "购买渠道"),
                 f("exchange_rate", "汇率（1 原币 = 本币）").placeholder("7.20"),
                 f("base_currency", "本币币种").placeholder("CNY"),
                 f("rate_date", "汇率日期").date(),
+                f("plan", "套餐"),
+                f("carrier", "通信供应商"),
+                f("country", "国家 / 地区"),
+                f("device_id", "eSIM 安装设备").refs(&["device"]),
+                f("phone_id", "关联号码").refs(&["account"]),
                 secret(),
             ],
         ),
         kind(
-            "person",
-            "家庭成员与组织",
+            "service",
+            "在线服务",
+            "订阅与服务",
             vec![
-                f("person_kind", "成员类型").options(&[
-                    ("self", "自己"),
-                    ("family", "家人"),
-                    ("child", "孩子"),
-                    ("organization", "公司 / 组织"),
+                f("service_kind", "种类").options(&[
+                    ("domain", "域名"),
+                    ("server", "服务器 / VPS"),
+                    ("agent", "个人 Agent"),
+                    ("network", "网络与穿透"),
+                    ("other", "其他"),
                 ]),
-                f("relationship", "家庭称谓 / 组织说明"),
-            ],
-        ),
-        kind(
-            "storage",
-            "硬盘与存储",
-            vec![
-                f("storage_kind", "介质类型").options(&[
-                    ("ssd", "固态硬盘"),
-                    ("hdd", "机械硬盘"),
-                    ("usb", "U 盘"),
-                    ("sd", "存储卡"),
-                ]),
-                f("model", "型号"),
-                f("serial", "序列号"),
-                f("capacity", "容量"),
-                f("interface", "接口"),
-                f("device_id", "安装设备 / 硬盘盒").refs(&["device"]),
-                f("owner_id", "所有者（产权）").refs(&["person"]),
-                f("location", "所在地"),
-                f("health", "健康状况 / 检测日期"),
-                f("backup_ref", "备份位置（无凭据）"),
-            ],
-        ),
-        kind(
-            "domain",
-            "域名",
-            vec![
+                f("provider", "服务商 / 注册商"),
+                expires(),
+                f("subscription_id", "续费订阅").refs(&["subscription"]),
+                f("account_id", "管理账号").refs(&["account"]),
+                f("owner_id", "所有者").refs(&["person"]),
                 f("hostname", "域名").placeholder("example.com"),
                 f("registrar", "注册商"),
-                f("account_id", "注册账号").refs(&["account"]),
-                f("server_id", "指向服务器").refs(&["server"]),
-                f("subscription_id", "续费记录").refs(&["subscription"]),
                 f("dns_provider", "DNS 托管商"),
-                expires(),
-            ],
-        ),
-        kind(
-            "server",
-            "服务器 / VPS",
-            vec![
-                f("provider", "服务商"),
+                f("server_id", "部署 / 指向的服务器").refs(&["service"]),
                 f("region", "地域"),
                 f("ip", "IP / 主机名"),
                 f("spec", "CPU / 内存 / 存储"),
                 f("os", "操作系统"),
-                f("account_id", "购买账号").refs(&["account"]),
-                f("subscription_id", "续费订阅").refs(&["subscription"]),
-                f("owner_id", "所有者").refs(&["person"]),
-                expires(),
-                secret(),
-            ],
-        ),
-        kind(
-            "agent",
-            "个人 Agent",
-            vec![
-                f("provider", "服务 / 框架"),
-                f("environment_id", "部署环境").refs(&["environment"]),
-                f("server_id", "部署服务器").refs(&["server"]),
-                f("account_id", "运行账号").refs(&["account"]),
-                f("subscription_id", "使用订阅").refs(&["subscription"]),
+                f("environment_id", "部署在哪个系统").refs(&["environment"]),
                 f("config_id", "配置来源").refs(&["config"]),
+                f("technology", "网络技术").options(TECHNOLOGY),
+                f("network_code", "网络标识（非密钥）"),
+                f("network_range", "网段"),
                 f("endpoint", "访问入口（无密钥）"),
                 f("purpose", "用途"),
                 secret(),
             ],
         ),
         kind(
+            "person",
+            "成员",
+            "家人",
+            vec![
+                f("person_kind", "类型").options(&[
+                    ("self", "自己"),
+                    ("family", "家人"),
+                    ("child", "孩子"),
+                    ("organization", "公司 / 组织"),
+                ]),
+                f("relationship", "称谓 / 说明"),
+            ],
+        ),
+        kind(
             "course",
-            "孩子的班课",
+            "班课",
+            "家人",
             vec![
                 f("person_id", "上课孩子 *").refs(&["person"]).required(),
                 f("institution", "机构"),
+                f("lessons_total", "购买课时"),
+                f("lessons_used", "已用课时"),
+                expires(),
                 f("subject", "科目 / 班级"),
                 f("teacher", "老师"),
                 f("schedule", "排课时间"),
                 f("location", "上课地点"),
                 f("starts_on", "开始日期").date(),
-                expires(),
-                f("lessons_total", "购买课时"),
-                f("lessons_used", "已用课时"),
                 f("price", "报名费用"),
                 f("currency", "币种").placeholder("CNY"),
                 f("account_id", "报名账号").refs(&["account"]),
             ],
         ),
         kind(
-            "assignment",
-            "使用与交接",
-            vec![
-                f("asset_id", "使用资产 *")
-                    .refs(&["device", "storage", "server"])
-                    .required(),
-                f("person_id", "使用成员 *").refs(&["person"]).required(),
-                f("usage_role", "使用角色 *")
-                    .options(&[
-                        ("primary", "主力"),
-                        ("backup", "备用"),
-                        ("shared", "共用"),
-                        ("loan", "借用"),
-                    ])
-                    .required(),
-                f("starts_on", "开始日期 *").date().required(),
-                f("ends_on", "结束日期（不含当日，空为持续使用）").date(),
-                f("location", "使用地点"),
-            ],
-        ),
-        kind(
             "resource",
-            "资源目录",
+            "资源",
+            "其他",
             vec![
-                f("resource_kind", "资源类别").options(&[
+                f("resource_kind", "类别").options(&[
                     ("game", "游戏 / 游戏集合"),
                     ("media", "影音"),
                     ("archive", "安装包 / 镜像"),
@@ -443,67 +401,19 @@ fn build() -> Schema {
             ],
         ),
         kind(
-            "copy",
-            "资源副本与位置",
+            "config",
+            "配置来源",
+            "其他",
             vec![
-                f("resource_id", "对应资源 *").refs(&["resource"]).required(),
-                f("holder_id", "存放载体 / NAS / 网盘账号 *")
-                    .refs(&["storage", "device", "account"])
-                    .required(),
-                f("path", "目录 / 卷 / 云端位置（不含凭据）"),
-                f("copy_role", "副本用途").options(&[
-                    ("source", "来源文件"),
-                    ("backup", "备份副本"),
-                    ("installed", "已安装内容"),
-                    ("archive", "归档"),
+                f("authority", "权威类型").options(&[
+                    ("git", "Git"),
+                    ("dav", "WebDAV"),
+                    ("vendor", "厂商云"),
+                    ("local", "本机"),
                 ]),
-                f("environment_id", "使用 / 安装环境").refs(&["environment"]),
-                f("content_state", "内容核实状态").options(&[
-                    ("present", "已核实存在"),
-                    ("missing", "已核实缺失"),
-                    ("unknown", "尚未核实"),
-                ]),
-                f("checksum", "校验值（可空）"),
-            ],
-        ),
-        kind(
-            "network",
-            "网络与穿透",
-            vec![
-                f("technology", "网络技术").options(&[
-                    ("zerotier", "ZeroTier"),
-                    ("tailscale", "Tailscale"),
-                    ("frp", "FRP"),
-                    ("cloudflare", "Cloudflare Tunnel"),
-                    ("lan", "局域网"),
-                    ("other", "其他"),
-                ]),
-                f("network_code", "网络标识（非密钥）"),
-                f("network_range", "网段"),
-                f("account_id", "管理账号").refs(&["account"]),
-                f("config_id", "配置来源").refs(&["config"]),
-                f("subscription_id", "相关订阅").refs(&["subscription"]),
-            ],
-        ),
-        kind(
-            "connection",
-            "节点接入",
-            vec![
-                f("network_id", "所属网络 *").refs(&["network"]).required(),
-                f("node_id", "实际接入节点 *")
-                    .refs(&["device", "environment"])
-                    .required(),
-                f("software_id", "使用的软件安装").refs(&["software"]),
-                f("enabled_state", "启用配置").options(ENABLED_STATE),
-                f("node_address", "节点地址 / 虚拟 IP"),
-                f("advertised_routes", "发布路由 / 内网网段"),
-                f("endpoint", "访问入口（不含密钥）"),
-                f("probe_state", "实际连通性").options(&[
-                    ("reachable", "已测试可达"),
-                    ("unreachable", "已测试不可达"),
-                    ("untested", "未测试"),
-                ]),
-                f("probe_at", "连通性测试时间（ISO 8601）"),
+                f("authority_ref", "权威位置").placeholder("仓库 / DAV / 厂商位置，不含凭据"),
+                f("forbidden_sync", "禁止同步项").textarea(),
+                secret(),
             ],
         ),
     ];
@@ -521,36 +431,137 @@ fn build() -> Schema {
         }
     }
     apply_tiers(&mut kinds);
+    let mut relations = relations();
+    for r in &mut relations {
+        apply_relation_tiers(r);
+    }
     Schema {
         kinds,
+        relations,
         verification: VERIFICATION.to_vec(),
     }
 }
+
+fn relation(
+    relation: &'static str,
+    name: &'static str,
+    from: &[&'static str],
+    to: &[&'static str],
+    attrs: Vec<Field>,
+) -> RelationDef {
+    let mut attrs = attrs;
+    attrs.push(f("note", "备注").textarea());
+    RelationDef {
+        relation,
+        name,
+        from: from.to_vec(),
+        to: to.to_vec(),
+        attrs,
+    }
+}
+
+fn relations() -> Vec<RelationDef> {
+    vec![
+        relation(
+            "uses",
+            "使用",
+            &["person"],
+            &["device", "service"],
+            vec![
+                f("usage_role", "使用角色 *")
+                    .options(&[
+                        ("primary", "主力"),
+                        ("backup", "备用"),
+                        ("shared", "共用"),
+                        ("loan", "借用"),
+                    ])
+                    .required(),
+                f("starts_on", "开始日期 *").date().required(),
+                f("ends_on", "结束日期（不含当日，空为持续使用）").date(),
+                f("location", "使用地点"),
+            ],
+        ),
+        relation("logged_in", "登录于", &["account"], &["device", "environment"], vec![]),
+        relation("recovery", "恢复方式", &["account"], &["account"], vec![]),
+        relation(
+            "config_path",
+            "使用路径",
+            &["config"],
+            &["environment"],
+            vec![f("path", "本机路径")],
+        ),
+        relation(
+            "stored_on",
+            "存放于",
+            &["resource"],
+            &["device", "account"],
+            vec![
+                f("path", "目录 / 卷 / 云端位置（不含凭据）"),
+                f("copy_role", "副本用途").options(&[
+                    ("source", "来源文件"),
+                    ("backup", "备份副本"),
+                    ("installed", "已安装内容"),
+                    ("archive", "归档"),
+                ]),
+                f("content_state", "内容核实状态").options(&[
+                    ("present", "已核实存在"),
+                    ("missing", "已核实缺失"),
+                    ("unknown", "尚未核实"),
+                ]),
+                f("environment_id", "使用 / 安装系统").refs(&["environment"]),
+                f("checksum", "校验值"),
+            ],
+        ),
+        relation(
+            "joins",
+            "接入网络",
+            &["device", "environment"],
+            &["service"],
+            vec![
+                f("node_address", "节点地址 / 虚拟 IP"),
+                f("enabled_state", "启用配置").options(ENABLED_STATE),
+                f("probe_state", "实际连通性").options(&[
+                    ("reachable", "已测试可达"),
+                    ("unreachable", "已测试不可达"),
+                    ("untested", "未测试"),
+                ]),
+                f("probe_at", "连通性测试时间（ISO 8601）"),
+                f("software_id", "使用的软件").refs(&["software"]),
+                f("advertised_routes", "发布路由 / 内网网段"),
+                f("endpoint", "访问入口（不含密钥）"),
+            ],
+        ),
+        relation("related", "其他关联", ALL_KINDS, ALL_KINDS, vec![]),
+    ]
+}
+
+pub const ALL_KINDS: &[&str] = &[
+    "device",
+    "environment",
+    "software",
+    "account",
+    "subscription",
+    "service",
+    "person",
+    "course",
+    "resource",
+    "config",
+];
 
 /// Fields shown by default for each kind; everything else goes under "更多信息".
 const CORE: &[(&str, &[&str])] = &[
     ("device", &["device_kind", "model", "owner_id", "location"]),
     ("environment", &["device_id", "os", "environment_kind"]),
     ("software", &["environment_id", "source", "config_id"]),
-    ("config", &["authority", "authority_ref"]),
-    ("account", &["provider", "login_hint", "owner_id"]),
-    ("phone", &["number", "carrier", "purpose"]),
-    ("esim", &["carrier", "plan", "expires_on", "device_id"]),
+    ("account", &["account_kind", "provider", "login_hint", "owner_id"]),
     ("subscription", &["price", "currency", "billing_period", "expires_on", "account_id"]),
+    ("service", &["service_kind", "provider", "expires_on", "subscription_id"]),
     ("person", &["person_kind", "relationship"]),
-    ("storage", &["storage_kind", "capacity", "device_id", "owner_id"]),
-    ("domain", &["hostname", "registrar", "expires_on", "account_id"]),
-    ("server", &["provider", "ip", "expires_on", "account_id"]),
-    ("agent", &["provider", "environment_id", "purpose"]),
     ("course", &["person_id", "institution", "lessons_total", "lessons_used", "expires_on"]),
-    ("assignment", &["asset_id", "person_id", "usage_role", "starts_on", "ends_on"]),
     ("resource", &["resource_kind", "platform"]),
-    ("copy", &["resource_id", "holder_id", "path", "copy_role"]),
-    ("network", &["technology", "account_id"]),
-    ("connection", &["network_id", "node_id", "node_address"]),
-];
-/// Filled by the app (where the record came from), never asked in forms.
-const SYSTEM: &[&str] = &["verification", "evidence", "observed_at"];
+    ("config", &["authority", "authority_ref"]),
+];/// Filled by the app (where the record came from), never asked in forms.
+const SYSTEM: &[&str] = &["verification", "evidence", "observed_at", "tracked"];
 /// Always shown: free notes.
 const ALWAYS: &[&str] = &["notes"];
 const DEFAULTS: &[(&str, &str)] = &[
@@ -587,6 +598,22 @@ fn apply_tiers(kinds: &mut [KindDef]) {
             Tier::System => (3, 0),
         });
     }
+}
+
+/// Relation attributes: required ones are core, the rest more; notes always shown.
+fn apply_relation_tiers(r: &mut RelationDef) {
+    for field in &mut r.attrs {
+        field.tier = if field.required || ALWAYS.contains(&field.key) || field.key == "path" {
+            Tier::Core
+        } else {
+            Tier::More
+        };
+        field.default_value = DEFAULTS.iter().find(|(key, _)| *key == field.key).map(|(_, v)| *v);
+    }
+}
+
+pub fn relation_def(relation: &str) -> Option<&'static RelationDef> {
+    schema().relations.iter().find(|r| r.relation == relation)
 }
 
 pub fn schema() -> &'static Schema {

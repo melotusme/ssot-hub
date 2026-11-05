@@ -2,22 +2,13 @@ export type Kind =
   | "device"
   | "environment"
   | "software"
-  | "config"
   | "account"
-  | "phone"
-  | "esim"
   | "subscription"
+  | "service"
   | "person"
-  | "storage"
-  | "domain"
-  | "server"
-  | "agent"
   | "course"
-  | "assignment"
   | "resource"
-  | "copy"
-  | "network"
-  | "connection";
+  | "config";
 export interface Asset {
   id: string;
   kind: Kind;
@@ -25,11 +16,13 @@ export interface Asset {
   status: "active" | "retired";
   fields: Record<string, string>;
 }
+/** A typed relation; `type` is one of the schema's relations (uses, logged_in, …). */
 export interface Link {
   id: string;
+  type: string;
   from: string;
   to: string;
-  relation: string;
+  attrs: Record<string, string>;
 }
 export interface AuditEvent {
   id: string;
@@ -68,11 +61,21 @@ export interface Field {
 export interface KindDef {
   kind: Kind;
   name: string;
+  /** Sidebar group. */
+  group: string;
   fields: Field[];
+}
+export interface RelationDef {
+  relation: string;
+  name: string;
+  from: Kind[];
+  to: Kind[];
+  attrs: Field[];
 }
 /** Schema served by the desktop backend (`schema` command); the only definition of kinds and fields. */
 export interface Schema {
   kinds: KindDef[];
+  relations: RelationDef[];
   verification: [string, string][];
 }
 // Live bindings: filled once by installSchema() before the UI renders.
@@ -80,6 +83,9 @@ export let kinds: Kind[] = [];
 export let names = {} as Record<Kind, string>;
 export let fields = {} as Record<Kind, Field[]>;
 export let verificationNames: Record<string, string> = {};
+export let relations: RelationDef[] = [];
+/** Sidebar groups in schema order, each with its kinds. */
+export let groups: { name: string; kinds: Kind[] }[] = [];
 export function installSchema(schema: Schema) {
   kinds = schema.kinds.map((k) => k.kind);
   names = Object.fromEntries(
@@ -89,6 +95,20 @@ export function installSchema(schema: Schema) {
     schema.kinds.map((k) => [k.kind, k.fields]),
   ) as Record<Kind, Field[]>;
   verificationNames = Object.fromEntries(schema.verification);
+  relations = schema.relations;
+  groups = [];
+  for (const k of schema.kinds) {
+    const g = groups.find((x) => x.name === k.group);
+    if (g) g.kinds.push(k.kind);
+    else groups.push({ name: k.group, kinds: [k.kind] });
+  }
+}
+export function relationDef(type: string): RelationDef | undefined {
+  return relations.find((r) => r.relation === type);
+}
+/** The label of an option value, or the value itself. */
+export function optionLabel(f: Field | undefined, v: string): string {
+  return f?.options?.find(([k]) => k === v)?.[1] || v;
 }
 export const matchesRef = (kind: Kind, ref: Field["ref"]) =>
   !!ref?.includes(kind);
@@ -96,28 +116,32 @@ export function today() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
-export function currentAssignments(s: Snapshot, id: string, date = today()) {
-  return s.assets.filter(
-    (a) =>
-      a.kind === "assignment" &&
-      a.status === "active" &&
-      a.fields.asset_id === id &&
-      a.fields.starts_on <= date &&
-      (!a.fields.ends_on || a.fields.ends_on > date),
+/** `uses` relations of an asset that are in effect on `date`. */
+export function currentUses(s: Snapshot, id: string, date = today()): Link[] {
+  return s.links.filter(
+    (l) =>
+      l.type === "uses" &&
+      l.to === id &&
+      (l.attrs.starts_on || "") <= date &&
+      (!l.attrs.ends_on || l.attrs.ends_on > date),
   );
 }
-export function usageLabel(a: Asset, s: Snapshot) {
+/** Who uses an asset now, e.g. "孩子 · 主力". */
+export function usageLabel(a: Asset, s: Snapshot): string {
+  const role = relationDef("uses")?.attrs.find((f) => f.key === "usage_role");
   return (
-    currentAssignments(s, a.id)
+    currentUses(s, a.id)
       .map(
-        (r) =>
-          `${s.assets.find((p) => p.id === r.fields.person_id)?.name || "未知成员"} · ${fields.assignment.find((f) => f.key === "usage_role")?.options?.find((o) => o[0] === r.fields.usage_role)?.[1] || ""}`,
+        (l) =>
+          `${s.assets.find((p) => p.id === l.from)?.name || "未知成员"} · ${optionLabel(role, l.attrs.usage_role || "")}`,
       )
       .join("、") || "未分配"
   );
 }
+/** Kinds that can be handed to a member. */
+export const usable = (k: Kind) => !!relationDef("uses")?.to.includes(k);
 export const empty: Snapshot = {
-  version: 3,
+  version: 4,
   revision: 0,
   assets: [],
   links: [],
@@ -134,10 +158,12 @@ export function connections(asset: Asset, s: Snapshot) {
           out.push({ id: a.id, label: `${names[a.kind]} · ${field.label}` });
       }
   for (const l of s.links) {
-    if (l.from === asset.id)
-      out.push({ id: l.to, label: l.relation, linkId: l.id });
+    const name = relationDef(l.type)?.name || l.type;
+    const detail = l.attrs.note || l.attrs.path || "";
+    const label = detail ? `${name}：${detail}` : name;
+    if (l.from === asset.id) out.push({ id: l.to, label, linkId: l.id });
     else if (l.to === asset.id)
-      out.push({ id: l.from, label: l.relation, linkId: l.id });
+      out.push({ id: l.from, label: `${label}（反向）`, linkId: l.id });
   }
   return out;
 }
@@ -245,16 +271,33 @@ export function demo(): Snapshot {
       subscription_id: sub.id,
     },
   };
+  const me: Asset = {
+    id: uid(),
+    kind: "person",
+    name: "示例 · 我",
+    status: "active",
+    fields: { person_kind: "self" },
+  };
+  d.fields.owner_id = me.id;
+  sw.fields.tracked = "yes";
   return {
     ...empty,
-    assets: [d, e, a, c, sub, sw],
+    assets: [me, d, e, a, c, sub, sw],
     links: [
-      { id: uid(), from: a.id, to: d.id, relation: "登录于" },
       {
         id: uid(),
+        type: "uses",
+        from: me.id,
+        to: d.id,
+        attrs: { usage_role: "primary", starts_on: today() },
+      },
+      { id: uid(), type: "logged_in", from: a.id, to: d.id, attrs: {} },
+      {
+        id: uid(),
+        type: "config_path",
         from: c.id,
         to: e.id,
-        relation: "使用路径：~/.config/editor",
+        attrs: { path: "~/.config/editor" },
       },
     ],
   };

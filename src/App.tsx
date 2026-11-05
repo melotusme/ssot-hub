@@ -10,10 +10,9 @@ import {
   Clock3,
   Database,
   Download,
-  Cable,
   FileCode2,
-  Files,
   FolderGit2,
+  GraduationCap,
   Library,
   Globe2,
   HardDrive,
@@ -26,11 +25,9 @@ import {
   RefreshCw,
   Settings2,
   ShieldCheck,
-  Smartphone,
   Sparkles,
   Trash2,
   UserRound,
-  Waypoints,
   X,
 } from "lucide-react";
 import { commands, chooseFile, chooseExport } from "./api";
@@ -44,12 +41,14 @@ import {
   names,
   primary,
   uid,
-  today,
   usageLabel,
-  currentAssignments,
+  currentUses,
+  groups,
+  usable,
   defaultsFor,
   type Asset,
   type DeletePlan,
+  type Link,
   type Kind,
   type Snapshot,
 } from "./model";
@@ -62,6 +61,7 @@ import NetworkImport from "./NetworkImport";
 import AiImport from "./AiImport";
 import AiPanel from "./AiPanel";
 import { AssetEditor, ModalFrame } from "./components/AssetEditor";
+import { RelationForm, TransferForm, UsagePanel } from "./components/Relations";
 import {
   RecordList,
   useRecordList,
@@ -72,27 +72,19 @@ const icons = {
   device: Monitor,
   environment: HardDrive,
   software: Box,
-  config: FileCode2,
   account: UserRound,
-  phone: Smartphone,
-  esim: Globe2,
   subscription: Clock3,
+  service: Globe2,
   person: UserRound,
-  storage: HardDrive,
-  domain: Globe2,
-  server: Database,
-  agent: Sparkles,
-  course: FileCode2,
-  assignment: RefreshCw,
+  course: GraduationCap,
   resource: Library,
-  copy: Files,
-  network: Waypoints,
-  connection: Cable,
+  config: FileCode2,
 };
 type View = "overview" | Kind | "history" | "settings" | "shortcuts";
 type Modal =
-  | { type: "edit"; asset: Asset; transferFrom?: string }
-  | { type: "link"; asset: Asset }
+  | { type: "edit"; asset: Asset }
+  | { type: "link"; asset: Asset; relation?: string }
+  | { type: "transfer"; link: Link }
   | { type: "delete"; plan: DeletePlan }
   | { type: "import" }
   | { type: "restore"; snapshot: Snapshot }
@@ -115,86 +107,6 @@ const actionNames: Record<string, string> = {
 function Icon({ kind, size = 19 }: { kind: Kind; size?: number }) {
   const C = icons[kind];
   return <C size={size} aria-hidden="true" />;
-}
-function RelationshipForm({
-  asset,
-  assets,
-  submit,
-  busy,
-  error,
-}: {
-  asset: Asset;
-  assets: Asset[];
-  submit: (to: string, relation: string) => void;
-  busy: boolean;
-  error: string;
-}) {
-  const [target, setTarget] = useState("");
-  const [relation, setRelation] = useState("");
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        submit(target, relation.trim());
-      }}
-    >
-      <p className="muted">
-        从「{asset.name}
-        」建立一条有用途的关联。配置使用关系可填写各机器的本地路径。
-      </p>
-      <label>
-        关联资产
-        <select
-          autoFocus
-          required
-          value={target}
-          onChange={(e) => setTarget(e.target.value)}
-        >
-          <option value="">请选择</option>
-          {assets
-            .filter((a) => a.id !== asset.id)
-            .map((a) => (
-              <option key={a.id} value={a.id}>
-                {names[a.kind]} · {a.name}
-              </option>
-            ))}
-        </select>
-      </label>
-      <label>
-        关系用途
-        <input
-          required
-          value={relation}
-          onChange={(e) => setRelation(e.target.value)}
-          placeholder="如：恢复号码、登录于、使用路径：~/.config"
-          list="relationship-kinds"
-        />
-        <datalist id="relationship-kinds">
-          {[
-            "登录于",
-            "恢复号码",
-            "服务于",
-            "连接到",
-            "挂载于",
-            "配置同步到",
-            "依赖于",
-          ].map((v) => (
-            <option key={v} value={v} />
-          ))}
-        </datalist>
-      </label>
-      {error && (
-        <p className="form-error" role="alert">
-          {error}
-        </p>
-      )}
-      <div className="dialog-foot">
-        <button className="primary" disabled={busy}>
-          建立关联
-        </button>
-      </div>
-    </form>
-  );
 }
 function ScanForm({
   assets,
@@ -393,6 +305,7 @@ export default function App() {
   const [member, setMember] = useState("");
   const [kindFilter, setKindFilter] = useState("");
   const [dimension, setDimension] = useState("");
+  const [showScanned, setShowScanned] = useState(false);
   const [modal, setModal] = useState<Modal | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -492,15 +405,18 @@ export default function App() {
   const dimensionKey = (
     {
       device: "device_kind",
-      account: "provider",
+      environment: "environment_kind",
+      account: "account_kind",
       subscription: "category",
+      service: "service_kind",
       course: "subject",
-      assignment: "usage_role",
       person: "person_kind",
-      storage: "storage_kind",
-      server: "provider",
+      resource: "resource_kind",
     } as Record<string, string>
   )[view];
+  const scanned = snapshot.assets.filter(
+    (a) => a.kind === "software" && a.fields.tracked !== "yes",
+  ).length;
   const candidates = snapshot.assets
     .filter(
       (a) =>
@@ -511,9 +427,9 @@ export default function App() {
         (!member ||
           a.fields.owner_id === member ||
           a.fields.person_id === member ||
-          currentAssignments(snapshot, a.id).some(
-            (r) => r.fields.person_id === member,
-          )) &&
+          currentUses(snapshot, a.id).some((l) => l.from === member)) &&
+        // Scanned software stays in the scan list until you follow it.
+        (a.kind !== "software" || showScanned || a.fields.tracked === "yes") &&
         (due === "all" ||
           (dueDays(a.fields.expires_on) !== null &&
             dueDays(a.fields.expires_on)! <= 30)),
@@ -522,7 +438,7 @@ export default function App() {
   const assetList = useRecordList({
     listKey: `assets.${view}`,
     items: candidates,
-    scope: `${status}|${due}|${member}|${kindFilter}|${dimension}`,
+    scope: `${status}|${due}|${member}|${kindFilter}|${dimension}|${showScanned}`,
     search: (a) =>
       `${a.name} ${Object.values(a.fields).join(" ")} ${usageLabel(a, snapshot)}`,
     sortFields: [
@@ -588,7 +504,10 @@ export default function App() {
       },
     );
   function counts(k: Kind) {
-    return active.filter((a) => a.kind === k).length;
+    // Scanned software is listed separately until followed.
+    return active.filter(
+      (a) => a.kind === k && (k !== "software" || a.fields.tracked === "yes"),
+    ).length;
   }
   return (
     <div className="app-shell">
@@ -620,41 +539,21 @@ export default function App() {
             <LayoutDashboard size={18} />
             资产总览
           </button>
-          <div className="nav-label">资产管理</div>
-          {kinds.slice(0, 4).map((k) => (
-            <button
-              key={k}
-              className={view === k ? "nav active" : "nav"}
-              onClick={() => navigate(k)}
-            >
-              <Icon kind={k} />
-              {names[k]}
-              <span className="count">{counts(k)}</span>
-            </button>
-          ))}
-          <div className="nav-label">身份与权益</div>
-          {kinds.slice(4, 8).map((k) => (
-            <button
-              key={k}
-              className={view === k ? "nav active" : "nav"}
-              onClick={() => navigate(k)}
-            >
-              <Icon kind={k} />
-              {names[k]}
-              <span className="count">{counts(k)}</span>
-            </button>
-          ))}
-          <div className="nav-label">家庭与服务</div>
-          {kinds.slice(8).map((k) => (
-            <button
-              key={k}
-              className={view === k ? "nav active" : "nav"}
-              onClick={() => navigate(k)}
-            >
-              <Icon kind={k} />
-              {names[k]}
-              <span className="count">{counts(k)}</span>
-            </button>
+          {groups.map((g) => (
+            <div key={g.name}>
+              <div className="nav-label">{g.name}</div>
+              {g.kinds.map((k) => (
+                <button
+                  key={k}
+                  className={view === k ? "nav active" : "nav"}
+                  onClick={() => navigate(k)}
+                >
+                  <Icon kind={k} />
+                  {names[k]}
+                  <span className="count">{counts(k)}</span>
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="sidebar-bottom">
@@ -971,9 +870,8 @@ export default function App() {
                         note: "连接你的工作环境",
                       },
                       {
-                        label: "身份与通信资产",
-                        value:
-                          counts("account") + counts("phone") + counts("esim"),
+                        label: "账号与号码",
+                        value: counts("account"),
                         icon: UserRound,
                         note: "账号、号码与套餐",
                       },
@@ -1103,6 +1001,17 @@ export default function App() {
                         ))}
                       </select>
                     )}
+                    {(view === "software" || view === "overview") &&
+                      scanned > 0 && (
+                        <label className="checkbox">
+                          <input
+                            type="checkbox"
+                            checked={showScanned}
+                            onChange={(e) => setShowScanned(e.target.checked)}
+                          />
+                          显示扫描清单（{scanned} 项未关注）
+                        </label>
+                      )}
                     {dimensionKey && (
                       <select
                         aria-label="按分类筛选"
@@ -1206,9 +1115,7 @@ export default function App() {
                                   title={primary(a, snapshot)}
                                 >
                                   {primary(a, snapshot)}
-                                  {["device", "storage", "server"].includes(
-                                    a.kind,
-                                  ) && (
+                                  {usable(a.kind) && (
                                     <small className="usage-cell">
                                       {usageLabel(a, snapshot)}
                                     </small>
@@ -1347,57 +1254,28 @@ export default function App() {
                         <Trash2 size={16} />
                       </button>
                     </div>
-                    {["device", "storage", "server"].includes(current.kind) && (
-                      <div className="usage-summary">
-                        <h3>当前使用</h3>
-                        <p>{usageLabel(current, snapshot)}</p>
-                        <button
-                          onClick={() =>
-                            openModal({
-                              type: "edit",
-                              asset: {
-                                id: uid(),
-                                kind: "assignment",
-                                name: `${current.name} · 使用记录`,
-                                status: "active",
-                                fields: {
-                                  asset_id: current.id,
-                                  starts_on: today(),
-                                  usage_role: "primary",
-                                },
-                              },
-                            })
-                          }
-                        >
-                          分配使用人
-                        </button>
-                      </div>
+                    {(usable(current.kind) || current.kind === "person") && (
+                      <UsagePanel
+                        asset={current}
+                        snapshot={snapshot}
+                        onAssign={() =>
+                          openModal({
+                            type: "link",
+                            asset: current,
+                            relation: "uses",
+                          })
+                        }
+                        onTransfer={(link) =>
+                          openModal({ type: "transfer", link })
+                        }
+                        onOpen={(id) => {
+                          const target = snapshot.assets.find(
+                            (a) => a.id === id,
+                          );
+                          if (target) goAsset(target);
+                        }}
+                      />
                     )}
-                    {current.kind === "assignment" &&
-                      !current.fields.ends_on &&
-                      current.status === "active" && (
-                        <button
-                          onClick={() =>
-                            openModal({
-                              type: "edit",
-                              transferFrom: current.id,
-                              asset: {
-                                ...structuredClone(current),
-                                id: uid(),
-                                name: `${snapshot.assets.find((a) => a.id === current.fields.asset_id)?.name || "资产"} · 交接`,
-                                fields: {
-                                  ...current.fields,
-                                  person_id: "",
-                                  starts_on: today(),
-                                  ends_on: "",
-                                },
-                              },
-                            })
-                          }
-                        >
-                          交接给另一位成员
-                        </button>
-                      )}
                     {current.kind === "course" && (
                       <div className="usage-summary">
                         剩余课时：
@@ -1406,6 +1284,32 @@ export default function App() {
                         / {current.fields.lessons_total || "未填写"}
                       </div>
                     )}
+                    {current.kind === "software" &&
+                      current.fields.tracked !== "yes" && (
+                        <div className="usage-summary">
+                          <p>这是扫描到的软件，默认不在软件列表里显示。</p>
+                          <button
+                            onClick={() =>
+                              mutate(
+                                (rev) =>
+                                  commands.save_asset(
+                                    {
+                                      ...current,
+                                      fields: {
+                                        ...current.fields,
+                                        tracked: "yes",
+                                      },
+                                    },
+                                    rev,
+                                  ),
+                                "已关注，软件列表里会显示它",
+                              )
+                            }
+                          >
+                            关注这个软件
+                          </button>
+                        </div>
+                      )}
                     {current.kind === "subscription" && (
                       <Cost asset={current} />
                     )}
@@ -1449,68 +1353,6 @@ export default function App() {
                     <div className="relation-heading">
                       <h3>关系拓扑（双向追踪）</h3>
                     </div>
-                    {["device", "storage", "server", "person"].includes(
-                      current.kind,
-                    ) && (
-                      <RecordList
-                        listKey={`usage-history.${current.kind}`}
-                        label="使用历史"
-                        items={snapshot.assets.filter(
-                          (a) =>
-                            a.kind === "assignment" &&
-                            (a.fields.asset_id === current.id ||
-                              a.fields.person_id === current.id),
-                        )}
-                        search={(a) =>
-                          `${a.name} ${snapshot.assets.find((p) => p.id === a.fields.person_id)?.name || ""}`
-                        }
-                        sortFields={[
-                          {
-                            key: "starts_on",
-                            label: "开始日期",
-                            value: (a) => a.fields.starts_on,
-                          },
-                          { key: "name", label: "名称", value: (a) => a.name },
-                        ]}
-                        empty="尚无使用记录"
-                      >
-                        {(rows) =>
-                          rows.map((a) => (
-                            <div className="usage-summary" key={a.id}>
-                              <button
-                                className="text-button"
-                                onClick={() => goAsset(a)}
-                              >
-                                {
-                                  snapshot.assets.find(
-                                    (p) => p.id === a.fields.person_id,
-                                  )?.name
-                                }{" "}
-                                ·{" "}
-                                {
-                                  snapshot.assets.find(
-                                    (p) => p.id === a.fields.asset_id,
-                                  )?.name
-                                }
-                              </button>
-                              <p>
-                                {a.fields.starts_on} →{" "}
-                                {a.fields.ends_on || "持续使用"}
-                              </p>
-                              <small>
-                                {
-                                  fields.assignment
-                                    .find((f) => f.key === "usage_role")
-                                    ?.options?.find(
-                                      (o) => o[0] === a.fields.usage_role,
-                                    )?.[1]
-                                }
-                              </small>
-                            </div>
-                          ))
-                        }
-                      </RecordList>
-                    )}
                     <div className="relation-heading">
                       <h3>
                         关联资产{" "}
@@ -1640,30 +1482,49 @@ export default function App() {
           error={error}
           close={() => !busy && setModal(null)}
           save={(a) =>
-            modal.transferFrom
-              ? mutate(
-                  (rev) => commands.transfer_asset(modal.transferFrom!, a, rev),
-                  "交接完成，旧使用历史已保留",
-                )
-              : mutate((rev) => commands.save_asset(a, rev), "资产已保存")
+            mutate((rev) => commands.save_asset(a, rev), "资产已保存")
           }
         />
       )}
       {modal?.type === "link" && (
-        <ModalFrame title="关联资产" close={() => !busy && setModal(null)}>
-          <RelationshipForm
-            asset={modal.asset}
+        <ModalFrame
+          title={
+            modal.relation === "uses"
+              ? `给谁用：${modal.asset.name}`
+              : "关联资产"
+          }
+          close={() => !busy && setModal(null)}
+        >
+          <RelationForm
+            anchor={modal.asset}
             assets={snapshot.assets}
+            initialType={modal.relation}
             busy={busy}
             error={error}
-            submit={(to, relation) =>
+            submit={(link) =>
+              mutate(
+                (rev) => commands.save_link(link, rev),
+                modal.relation === "uses" ? "已分配使用人" : "关联已建立",
+              )
+            }
+          />
+        </ModalFrame>
+      )}
+      {modal?.type === "transfer" && (
+        <ModalFrame
+          title="交接给另一位成员"
+          close={() => !busy && setModal(null)}
+        >
+          <TransferForm
+            link={modal.link}
+            snapshot={snapshot}
+            busy={busy}
+            error={error}
+            submit={(person, date) =>
               mutate(
                 (rev) =>
-                  commands.save_link(
-                    { id: uid(), from: modal.asset.id, to, relation },
-                    rev,
-                  ),
-                "关联已建立",
+                  commands.transfer_use(modal.link.id, person, date, null, rev),
+                "交接完成，旧使用历史已保留",
               )
             }
           />
@@ -1679,7 +1540,7 @@ export default function App() {
             apply={(assets) =>
               mutate(
                 (rev) => commands.apply_import(assets, rev),
-                "软件清单已导入",
+                "已导入扫描清单：在软件列表勾选「显示扫描清单」查看，关注后才进入主列表",
               )
             }
           />

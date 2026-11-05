@@ -55,13 +55,13 @@ it("新建订阅只显示核心字段，默认人民币、所有者是自己，�
     .filter((el) => !more.contains(el));
   expect(outside.length).toBeLessThanOrEqual(7);
   expect(screen.queryByText("汇率（1 原币 = 本币）")).not.toBeInTheDocument();
-  await user.clear(screen.getByLabelText("原币币种"));
-  await user.type(screen.getByLabelText("原币币种"), "USD");
+  await user.clear(screen.getByLabelText("币种"));
+  await user.type(screen.getByLabelText("币种"), "USD");
   expect(screen.getByText("汇率（1 原币 = 本币）")).toBeInTheDocument();
   // System fields are never asked.
   expect(screen.queryByText("资料依据")).not.toBeInTheDocument();
 });
 
 it("日期默认今天", () => {
-  expect(defaultsFor("assignment", empty).starts_on).toBe(today());
+  expect(defaultsFor("course", empty).starts_on).toBe(today());
 });

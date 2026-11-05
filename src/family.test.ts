@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
-  empty,
-  currentAssignments,
   connections,
+  currentUses,
+  empty,
+  usageLabel,
   type Asset,
+  type Link,
   type Snapshot,
 } from "./model";
 const a = (
@@ -11,6 +13,13 @@ const a = (
   kind: Asset["kind"],
   fields: Asset["fields"] = {},
 ): Asset => ({ id, kind, name: id, status: "active", fields });
+const uses = (id: string, from: string, attrs: Link["attrs"]): Link => ({
+  id,
+  type: "uses",
+  from,
+  to: "laptop",
+  attrs: { usage_role: "primary", ...attrs },
+});
 function family(): Snapshot {
   return {
     ...structuredClone(empty),
@@ -19,43 +28,29 @@ function family(): Snapshot {
       a("child", "person"),
       a("company", "person"),
       a("laptop", "device", { owner_id: "company", location: "公司" }),
-      a("old", "assignment", {
-        asset_id: "laptop",
-        person_id: "me",
-        starts_on: "2025-01-01",
-        usage_role: "primary",
-      }),
+    ],
+    links: [
+      uses("old", "me", { starts_on: "2025-01-01", ends_on: "2026-10-01" }),
+      uses("new", "child", { starts_on: "2026-10-01", usage_role: "backup" }),
     ],
   };
 }
 describe("家庭资产模型", () => {
   it("产权和使用人分离，按日期查询使用历史", () => {
     const s = family();
-    s.assets[4].fields.ends_on = "2026-10-01";
-    s.assets.push(
-      a("new", "assignment", {
-        asset_id: "laptop",
-        person_id: "child",
-        starts_on: "2026-10-01",
-        usage_role: "backup",
-      }),
-    );
-    expect(
-      currentAssignments(s, "laptop", "2026-09-30")[0].fields.person_id,
-    ).toBe("me");
-    expect(
-      currentAssignments(s, "laptop", "2026-10-01")[0].fields.person_id,
-    ).toBe("child");
+    expect(currentUses(s, "laptop", "2026-09-30")[0].from).toBe("me");
+    expect(currentUses(s, "laptop", "2026-10-01")[0].from).toBe("child");
+    expect(usageLabel(s.assets[3], s)).toMatch(/^child · /);
     expect(s.assets[3].fields.owner_id).toBe("company");
   });
   it("硬盘到系统和设备关系双向可追踪", () => {
     const s = family();
     s.assets.push(
-      a("disk", "storage", { device_id: "laptop" }),
+      a("disk", "device", { device_kind: "ssd", parent_id: "laptop" }),
       a("linux", "environment", { storage_id: "disk" }),
     );
     expect(
-      connections(s.assets[5], s)
+      connections(s.assets[4], s)
         .map((r) => r.id)
         .sort(),
     ).toEqual(["laptop", "linux"]);

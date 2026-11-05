@@ -1,6 +1,6 @@
 //! Turns free text or screenshots into asset drafts. The model only proposes; every draft is
 //! checked against the schema here, and nothing is written until the user confirms.
-use crate::schema::{self, Field};
+use crate::schema::{self, Field, Tier};
 use crate::store::{Asset, Snapshot};
 use serde::Serialize;
 use serde_json::Value;
@@ -8,8 +8,6 @@ use std::collections::HashMap;
 
 type Result<T> = std::result::Result<T, String>;
 
-/// Fields the backend fills itself; the model is not asked for them.
-const SYSTEM_FIELDS: &[&str] = &["verification", "evidence", "observed_at"];
 const SECRET_FIELDS: &[&str] = &["secret_ref", "license_ref"];
 const VAULT_PREFIXES: &[&str] = &["op://", "1password://", "vault://", "keychain://", "bw://"];
 const CONTEXT_LIMIT: usize = 800;
@@ -54,7 +52,7 @@ pub fn system_prompt(kind_hint: Option<&str>, today: &str) -> String {
         let fields: Vec<_> = k
             .fields
             .iter()
-            .filter(|f| !SYSTEM_FIELDS.contains(&f.key))
+            .filter(|f| f.tier != Tier::System)
             .map(describe_field)
             .collect();
         kinds.push_str(&format!("- {}（{}）：{}\n", k.kind, k.name, fields.join("；")));
@@ -214,7 +212,7 @@ pub fn sanitize(answer: &Value, s: &Snapshot, evidence: &str, model: &str) -> Ex
                 warnings.push(format!("忽略不支持的字段 {key}"));
                 continue;
             };
-            if SYSTEM_FIELDS.contains(&f.key) {
+            if f.tier == Tier::System {
                 continue;
             }
             let label = f.label.trim_end_matches(" *");
@@ -263,6 +261,10 @@ pub fn sanitize(answer: &Value, s: &Snapshot, evidence: &str, model: &str) -> Ex
             }
         }
         fields.insert("verification".into(), "reported".into());
+        if raw.kind.kind == "software" {
+            // Mentioned by the user, so it is software they care about.
+            fields.insert("tracked".into(), "yes".into());
+        }
         fields.insert("evidence".into(), evidence.into());
         let missing: Vec<&str> = raw
             .kind
@@ -322,7 +324,7 @@ mod tests {
     fn prompt_lists_schema_and_only_names_of_existing_assets() {
         let p = system_prompt(Some("subscription"), "2026-11-05");
         assert!(p.contains("billing_period(计费周期) 取值:month=每月/year=每年/once=一次性"));
-        assert!(p.contains("「订阅与许可」") && !p.contains("observed_at("));
+        assert!(p.contains("「订阅」") && !p.contains("observed_at(") && !p.contains("tracked("));
         let mut s = ledger();
         s.assets[1].fields.insert("serial".into(), "SECRET-SERIAL".into());
         let u = user_prompt("新买的 iPad", &s);
@@ -364,7 +366,7 @@ mod tests {
         assert_eq!(sub["currency"], "CNY");
         assert!(!sub.contains_key("expires_on") && !sub.contains_key("owner_id"));
         let software = &e.drafts[2];
-        assert!(!software.ready && software.warnings.iter().any(|w| w.contains("所属系统环境")));
+        assert!(!software.ready && software.warnings.iter().any(|w| w.contains("所在系统")));
         assert!(e.drafts.iter().all(|d| d.asset.id.len() == 36));
     }
 }

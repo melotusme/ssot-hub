@@ -105,7 +105,7 @@ describe("AI 辅助录入", () => {
     expect(within(raycast).getByRole("checkbox")).toBeDisabled();
     expect(within(raycast).getByText(/缺少必填/)).toBeInTheDocument();
     // The subscription references the account by name in the summary.
-    expect(screen.getByText(/权益持有账号：Google 个人/)).toBeInTheDocument();
+    expect(screen.getByText(/付费账号：Google 个人/)).toBeInTheDocument();
     const account = screen
       .getByText("Google 个人", { selector: "strong" })
       .closest(".ai-draft-row") as HTMLElement;

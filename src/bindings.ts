@@ -8,30 +8,31 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 export const commands = {
 	schema: () => __TAURI_INVOKE<Schema_Serialize>("schema"),
 	/**  Validate a decrypted or file snapshot before the UI previews it. */
-	check_snapshot: (snapshot: Snapshot) => __TAURI_INVOKE<Snapshot>("check_snapshot", { snapshot }),
-	load: () => __TAURI_INVOKE<Snapshot>("load"),
-	save_asset: (asset: Asset, revision: number) => __TAURI_INVOKE<Snapshot>("save_asset", { asset, revision }),
-	transfer_asset: (id: string, next: Asset, revision: number) => __TAURI_INVOKE<Snapshot>("transfer_asset", { id, next, revision }),
-	save_link: (link: Link, revision: number) => __TAURI_INVOKE<Snapshot>("save_link", { link, revision }),
-	remove_link: (id: string, revision: number) => __TAURI_INVOKE<Snapshot>("remove_link", { id, revision }),
+	check_snapshot: (snapshot: Value) => __TAURI_INVOKE<Snapshot_Serialize>("check_snapshot", { snapshot }),
+	load: () => __TAURI_INVOKE<Snapshot_Serialize>("load"),
+	save_asset: (asset: Asset, revision: number) => __TAURI_INVOKE<Snapshot_Serialize>("save_asset", { asset, revision }),
+	/**  End the open `uses` relation `id` and start one for `person_id` on `starts_on`. */
+	transfer_use: (id: string, personId: string, startsOn: string, usageRole: string | null, revision: number) => __TAURI_INVOKE<Snapshot_Serialize>("transfer_use", { id, personId, startsOn, usageRole, revision }),
+	save_link: (link: Link_Deserialize, revision: number) => __TAURI_INVOKE<Snapshot_Serialize>("save_link", { link, revision }),
+	remove_link: (id: string, revision: number) => __TAURI_INVOKE<Snapshot_Serialize>("remove_link", { id, revision }),
 	delete_plan: (id: string) => __TAURI_INVOKE<DeletePlan>("delete_plan", { id }),
-	delete_asset: (id: string, revision: number) => __TAURI_INVOKE<Snapshot>("delete_asset", { id, revision }),
+	delete_asset: (id: string, revision: number) => __TAURI_INVOKE<Snapshot_Serialize>("delete_asset", { id, revision }),
 	backup: () => __TAURI_INVOKE<string>("backup"),
 	list_backups: () => __TAURI_INVOKE<Value[]>("list_backups"),
-	read_backup: (id: string) => __TAURI_INVOKE<Snapshot>("read_backup", { id }),
+	read_backup: (id: string) => __TAURI_INVOKE<Snapshot_Serialize>("read_backup", { id }),
 	export_snapshot: (path: string) => __TAURI_INVOKE<null>("export_snapshot", { path }),
-	preview_snapshot: (path: string) => __TAURI_INVOKE<Snapshot>("preview_snapshot", { path }),
-	restore_snapshot: (snapshot: Snapshot, revision: number) => __TAURI_INVOKE<Snapshot>("restore_snapshot", { snapshot, revision }),
-	replace_snapshot: (snapshot: Snapshot, revision: number) => __TAURI_INVOKE<Snapshot>("replace_snapshot", { snapshot, revision }),
+	preview_snapshot: (path: string) => __TAURI_INVOKE<Snapshot_Serialize>("preview_snapshot", { path }),
+	restore_snapshot: (snapshot: Snapshot_Deserialize, revision: number) => __TAURI_INVOKE<Snapshot_Serialize>("restore_snapshot", { snapshot, revision }),
+	replace_snapshot: (snapshot: Snapshot_Deserialize, revision: number) => __TAURI_INVOKE<Snapshot_Serialize>("replace_snapshot", { snapshot, revision }),
 	write_encrypted: (path: string, content: string) => __TAURI_INVOKE<null>("write_encrypted", { path, content }),
 	read_encrypted: (path: string) => __TAURI_INVOKE<string>("read_encrypted", { path }),
 	dav_request: (url: string, method: string, username: string, password: string, body: string | null, condition: [string, string] | null, useVerge: boolean | null) => __TAURI_INVOKE<Response_Serialize>("dav_request", { url, method, username, password, body, condition, useVerge }),
 	verge_dav_profile: () => __TAURI_INVOKE<Profile>("verge_dav_profile"),
-	new_workspace: () => __TAURI_INVOKE<Snapshot>("new_workspace"),
+	new_workspace: () => __TAURI_INVOKE<Snapshot_Serialize>("new_workspace"),
 	data_path: () => __TAURI_INVOKE<string>("data_path"),
 	preview_brew: (path: string, environment: string) => __TAURI_INVOKE<Asset[]>("preview_brew", { path, environment }),
 	preview_git: (path: string, depth: number, environment: string) => __TAURI_INVOKE<Asset[]>("preview_git", { path, depth, environment }),
-	apply_import: (assets: Asset[], revision: number) => __TAURI_INVOKE<Snapshot>("apply_import", { assets, revision }),
+	apply_import: (assets: Asset[], revision: number) => __TAURI_INVOKE<Snapshot_Serialize>("apply_import", { assets, revision }),
 	cycle_cost: (price: string, rate: string) => __TAURI_INVOKE<string>("cycle_cost", { price, rate }),
 	shortcut_source: (path: string | null) => __TAURI_INVOKE<Source>("shortcut_source", { path }),
 	shortcut_preview: (path: string, revision: string, change: Change_Deserialize) => __TAURI_INVOKE<Preview>("shortcut_preview", { path, revision, change }),
@@ -56,7 +57,7 @@ export const commands = {
 	 */
 	ai_extract: (text: string, images: string[], kindHint: string | null) => __TAURI_INVOKE<Extraction>("ai_extract", { text, images, kindHint }),
 	/**  Register confirmed drafts as new assets in one transaction. */
-	ai_apply: (assets: Asset[], revision: number) => __TAURI_INVOKE<Snapshot>("ai_apply", { assets, revision }),
+	ai_apply: (assets: Asset[], revision: number) => __TAURI_INVOKE<Snapshot_Serialize>("ai_apply", { assets, revision }),
 };
 
 /* Types */
@@ -176,20 +177,37 @@ export type KindDef = KindDef_Serialize | KindDef_Deserialize;
 export type KindDef_Deserialize = {
 	kind: string,
 	name: string,
+	/**  Sidebar group. */
+	group: string,
 	fields: Field_Deserialize[],
 };
 
 export type KindDef_Serialize = {
 	kind: string,
 	name: string,
+	/**  Sidebar group. */
+	group: string,
 	fields: Field_Serialize[],
 };
 
-export type Link = {
+export type Link = Link_Serialize | Link_Deserialize;
+
+export type Link_Deserialize = {
 	id: string,
+	/**  A relation type from the schema (`uses`, `logged_in`, …). */
+	type: string,
 	from: string,
 	to: string,
-	relation: string,
+	attrs?: { [key in string]: string },
+};
+
+export type Link_Serialize = {
+	id: string,
+	/**  A relation type from the schema (`uses`, `logged_in`, …). */
+	type: string,
+	from: string,
+	to: string,
+	attrs: { [key in string]: string },
 };
 
 export type MagpieConnection = MagpieConnection_Serialize | MagpieConnection_Deserialize;
@@ -244,6 +262,27 @@ export type Provider_Serialize = {
 	source: string | null,
 };
 
+/**  A typed relation between two assets, optionally with attributes and a time span. */
+export type RelationDef = RelationDef_Serialize | RelationDef_Deserialize;
+
+/**  A typed relation between two assets, optionally with attributes and a time span. */
+export type RelationDef_Deserialize = {
+	relation: string,
+	name: string,
+	from: string[],
+	to: string[],
+	attrs: Field_Deserialize[],
+};
+
+/**  A typed relation between two assets, optionally with attributes and a time span. */
+export type RelationDef_Serialize = {
+	relation: string,
+	name: string,
+	from: string[],
+	to: string[],
+	attrs: Field_Serialize[],
+};
+
 export type Response = Response_Serialize | Response_Deserialize;
 
 export type Response_Deserialize = {
@@ -262,11 +301,13 @@ export type Schema = Schema_Serialize | Schema_Deserialize;
 
 export type Schema_Deserialize = {
 	kinds: KindDef_Deserialize[],
+	relations: RelationDef_Deserialize[],
 	verification: ([string, string])[],
 };
 
 export type Schema_Serialize = {
 	kinds: KindDef_Serialize[],
+	relations: RelationDef_Serialize[],
 	verification: ([string, string])[],
 };
 
@@ -282,11 +323,21 @@ export type Shortcut = {
 	line: number,
 };
 
-export type Snapshot = {
+export type Snapshot = Snapshot_Serialize | Snapshot_Deserialize;
+
+export type Snapshot_Deserialize = {
 	version: number,
 	revision: number,
 	assets: Asset[],
-	links: Link[],
+	links: Link_Deserialize[],
+	events: Event[],
+};
+
+export type Snapshot_Serialize = {
+	version: number,
+	revision: number,
+	assets: Asset[],
+	links: Link_Serialize[],
 	events: Event[],
 };
 

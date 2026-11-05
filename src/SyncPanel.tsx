@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { commands, chooseExport, chooseFile } from "./api";
+import type { Value } from "./bindings";
 import type { Snapshot } from "./model";
 import {
   davDirectory,
@@ -55,7 +56,10 @@ export default function SyncPanel({
     const payload = await decryptPayload(text, passphrase);
     return {
       ...payload,
-      snapshot: await commands.check_snapshot(payload.snapshot),
+      // May be an older snapshot version; the backend upgrades and validates it.
+      snapshot: await commands.check_snapshot(
+        payload.snapshot as unknown as Value,
+      ),
     };
   };
   const run = async (fn: () => Promise<void>) => {

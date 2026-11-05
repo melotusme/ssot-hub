@@ -46,10 +46,7 @@ describe("桌面登记流程", () => {
     await user.click(screen.getByRole("button", { name: "登记第一项资产" }));
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("资产名称 *"), "工作 Mac");
-    await user.selectOptions(
-      within(dialog).getByLabelText("设备类型"),
-      "computer",
-    );
+    await user.selectOptions(within(dialog).getByLabelText("种类"), "computer");
     await user.click(within(dialog).getByRole("button", { name: "保存资产" }));
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),

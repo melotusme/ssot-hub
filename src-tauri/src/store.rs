@@ -2,13 +2,12 @@ use chrono::Utc;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
 };
 use uuid::Uuid;
 
-use crate::schema;
 
 type Result<T> = std::result::Result<T, String>;
 #[derive(Clone, Debug, Serialize, Deserialize, specta::Type)]
@@ -24,9 +23,13 @@ pub struct Asset {
 #[serde(deny_unknown_fields)]
 pub struct Link {
     pub id: String,
+    /// A relation type from the schema (`uses`, `logged_in`, …).
+    #[serde(rename = "type")]
+    pub kind: String,
     pub from: String,
     pub to: String,
-    pub relation: String,
+    #[serde(default)]
+    pub attrs: BTreeMap<String, String>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, specta::Type)]
 #[serde(deny_unknown_fields)]
@@ -92,7 +95,7 @@ pub fn open(path: &Path) -> Result<Connection> {
     )
     .map_err(error)?;
     let empty = Snapshot {
-        version: 3,
+        version: crate::validate::SNAPSHOT_VERSION,
         revision: 0,
         assets: vec![],
         links: vec![],
@@ -109,10 +112,7 @@ pub fn read(c: &Connection) -> Result<Snapshot> {
     let s: String = c
         .query_row("SELECT body FROM state WHERE id=1", [], |r| r.get(0))
         .map_err(error)?;
-    let mut snapshot: Snapshot = serde_json::from_str(&s).map_err(error)?;
-    validate(&snapshot)?;
-    snapshot.version = 3;
-    Ok(snapshot)
+    parse(&s)
 }
 fn check_revision(s: &Snapshot, revision: u64) -> Result<()> {
     if s.revision != revision {
@@ -138,238 +138,14 @@ fn persist(c: &Connection, s: &mut Snapshot) -> Result<()> {
     .map_err(error)?;
     Ok(())
 }
-/// Whether `key` holds a reference on assets of `kind`.
-fn is_ref(kind: &str, key: &str) -> bool {
-    schema::field(kind, key).is_some_and(|f| f.refs.is_some())
-}
-const NAME_MAX_CHARS: usize = 500;
-pub fn validate(s: &Snapshot) -> Result<()> {
-    if ![1, 2, 3].contains(&s.version) {
-        return Err("不支持的快照版本".into());
-    }
-    let mut by_id: HashMap<&str, &Asset> = HashMap::with_capacity(s.assets.len());
-    for a in &s.assets {
-        if a.id.is_empty() || by_id.insert(a.id.as_str(), a).is_some() {
-            return Err("资产 ID 无效/重复".into());
-        }
-    }
-    let mut ids: HashSet<String> = by_id.keys().map(|k| k.to_string()).collect();
-    for a in &s.assets {
-        let Some(def) = schema::kind_def(&a.kind) else {
-            return Err(format!("不支持的资产类型：{}", a.kind));
-        };
-        if a.name.trim().is_empty() {
-            return Err("资产名称不能为空".into());
-        }
-        if a.name.chars().count() > NAME_MAX_CHARS || !["active", "retired"].contains(&a.status.as_str()) {
-            return Err("名称过长或资产状态无效".into());
-        }
-        for (k, v) in &a.fields {
-            let field = def.fields.iter().find(|f| f.key == k);
-            if field.is_none() && !schema::LEGACY_KEYS.contains(&k.as_str()) {
-                return Err(format!("不支持的字段：{k}（请勿录入密码或令牌）"));
-            }
-            if v.chars().count() > 20000 {
-                return Err("字段内容过长".into());
-            }
-            if v.is_empty() {
-                continue;
-            }
-            let label = field.map(|f| f.label).unwrap_or(k);
-            if ["secret_ref", "license_ref"].contains(&k.as_str())
-                && !["op://", "1password://", "vault://", "keychain://", "bw://"]
-                    .iter()
-                    .any(|p| v.starts_with(p))
-            {
-                return Err("凭据仅允许保险库引用".into());
-            }
-            let is_date = field.map_or(schema::legacy_is_date(k), |f| f.is_date());
-            if is_date && chrono::NaiveDate::parse_from_str(v, "%Y-%m-%d").is_err() {
-                return Err(format!("{label}应为有效的 YYYY-MM-DD"));
-            }
-            if let Some(targets) = field.and_then(|f| f.refs.as_ref())
-                && (a.id == *v
-                    || !by_id
-                        .get(v.as_str())
-                        .is_some_and(|t| targets.contains(&t.kind.as_str())))
-            {
-                return Err(format!("{label} 引用无效（{}）", a.name));
-            }
-            if let Some(options) = field.and_then(|f| f.options.as_ref())
-                && !options.iter().any(|(value, _)| value == v)
-            {
-                return Err(format!("{label} 选项无效：{v}"));
-            }
-            if ["price", "exchange_rate"].contains(&k.as_str()) {
-                let n = v
-                    .parse::<rust_decimal::Decimal>()
-                    .map_err(|_| "金额与汇率必须是十进制数字")?;
-                if n.is_sign_negative() || (k == "exchange_rate" && n.is_zero()) {
-                    return Err("金额不可为负，汇率必须大于零".into());
-                }
-            }
-            if ["currency", "base_currency"].contains(&k.as_str())
-                && (v.len() != 3 || !v.bytes().all(|c| c.is_ascii_uppercase()))
-            {
-                return Err("币种应为三位大写代码，如 CNY".into());
-            }
-            if ["repository", "authority_ref", "endpoint", "backup_ref", "path"].contains(&k.as_str())
-                && (v.contains('@') && v.contains("://")
-                    || v.contains("token=")
-                    || v.contains("password="))
-            {
-                return Err("地址不能包含凭据".into());
-            }
-        }
-        for f in def.fields.iter().filter(|f| f.required) {
-            if a.fields.get(f.key).is_none_or(|v| v.is_empty()) {
-                return Err(format!("请填写{}（{}）", f.label.trim_end_matches(" *"), a.name));
-            }
-        }
-        if a.kind == "software" && a.fields.get("environment_id").is_none_or(|v| v.is_empty()) {
-            return Err("软件安装必须选择系统环境".into());
-        }
-        if a.kind == "course" {
-            if a.fields.get("person_id").is_none_or(|v| v.is_empty()) {
-                return Err("课程必须选择上课成员".into());
-            }
-            let number = |key: &str| -> Result<u32> {
-                a.fields
-                    .get(key)
-                    .filter(|v| !v.is_empty())
-                    .map(|v| v.parse::<u32>().map_err(|_| "课时必须是非负整数".into()))
-                    .unwrap_or(Ok(0))
-            };
-            let used = number("lessons_used")?;
-            let total = number("lessons_total")?;
-            if used > total {
-                return Err("已用课时不能超过购买课时".into());
-            }
-            if let (Some(start), Some(end)) =
-                (a.fields.get("starts_on"), a.fields.get("expires_on"))
-                && !end.is_empty()
-                && end < start
-            {
-                return Err("课程到期不能早于开始".into());
-            }
-        }
-        if a.kind == "assignment" {
-            for key in ["asset_id", "person_id", "starts_on", "usage_role"] {
-                if a.fields.get(key).is_none_or(|v| v.is_empty()) {
-                    return Err(format!("使用记录缺少 {key}"));
-                }
-            }
-            if !["primary", "backup", "shared", "loan"].contains(&a.fields["usage_role"].as_str()) {
-                return Err("使用角色无效".into());
-            }
-            if a.fields
-                .get("ends_on")
-                .is_some_and(|v| !v.is_empty() && v <= &a.fields["starts_on"])
-            {
-                return Err("使用结束日期必须晚于开始日期".into());
-            }
-            if a.status == "active" {
-                for b in &s.assets {
-                    if b.id == a.id
-                        || b.kind != "assignment"
-                        || b.status != "active"
-                        || b.fields.get("asset_id") != a.fields.get("asset_id")
-                    {
-                        continue;
-                    }
-                    let a_end = a
-                        .fields
-                        .get("ends_on")
-                        .filter(|v| !v.is_empty())
-                        .map(String::as_str)
-                        .unwrap_or("9999-12-31");
-                    let b_end = b
-                        .fields
-                        .get("ends_on")
-                        .filter(|v| !v.is_empty())
-                        .map(String::as_str)
-                        .unwrap_or("9999-12-31");
-                    let b_start = b.fields.get("starts_on").map(String::as_str).unwrap_or("");
-                    if a.fields["starts_on"].as_str() < b_end
-                        && b_start < a_end
-                        && (a.fields.get("person_id") == b.fields.get("person_id")
-                            || a.fields["usage_role"] != "shared"
-                            || b.fields.get("usage_role").is_none_or(|v| v != "shared"))
-                    {
-                        return Err(
-                            "使用区间重叠：请交接或结束旧记录；多人同时使用须均为共用".into()
-                        );
-                    }
-                }
-            }
-        }
-        if a.kind == "copy" {
-            for key in ["resource_id", "holder_id"] {
-                if a.fields.get(key).is_none_or(|v| v.is_empty()) {
-                    return Err(format!("资源副本缺少 {key}"));
-                }
-            }
-        }
-        if a.kind == "connection" {
-            for key in ["network_id", "node_id"] {
-                if a.fields.get(key).is_none_or(|v| v.is_empty()) {
-                    return Err(format!("节点接入缺少 {key}"));
-                }
-            }
-            if a.fields
-                .get("probe_state")
-                .is_some_and(|v| !v.is_empty() && v != "untested")
-                && a.fields.get("probe_at").is_none_or(|v| {
-                    chrono::DateTime::parse_from_rfc3339(v).is_err()
-                })
-            {
-                return Err("标记连通性必须填写有效测试时间，配置存在不等于连通".into());
-            }
-            if let Some(software_id) = a.fields.get("software_id").filter(|v| !v.is_empty()) {
-                let installation = by_id.get(software_id.as_str());
-                let env = installation
-                    .and_then(|x| x.fields.get("environment_id"))
-                    .and_then(|id| by_id.get(id.as_str()));
-                let node = a.fields.get("node_id").map(String::as_str);
-                let env_device = env.and_then(|e| e.fields.get("device_id")).map(String::as_str);
-                if node != env.map(|e| e.id.as_str()) && node != env_device {
-                    return Err("网络节点与软件安装环境不一致；不能混淆宿主和客户机".into());
-                }
-            }
-        }
-        // A host chain cannot contain a cycle.
-        let mut seen = HashSet::new();
-        let mut cursor = Some(a);
-        while let Some(node) = cursor {
-            if !seen.insert(&node.id) {
-                return Err("系统环境宿主关系存在循环".into());
-            }
-            cursor = node
-                .fields
-                .get("host_id")
-                .and_then(|id| by_id.get(id.as_str()).copied());
-        }
-    }
-    let mut triples = HashSet::new();
-    for l in &s.links {
-        if l.id.is_empty()
-            || !ids.insert(l.id.clone())
-            || l.from == l.to
-            || l.relation.trim().is_empty()
-            || !by_id.contains_key(l.from.as_str())
-            || !by_id.contains_key(l.to.as_str())
-            || !triples.insert((&l.from, &l.to, &l.relation))
-        {
-            return Err("关系端点、用途或 ID 无效/重复".into());
-        }
-    }
-    let mut event_ids = HashSet::new();
-    for e in &s.events {
-        if e.id.is_empty() || !event_ids.insert(&e.id) {
-            return Err("审计事件 ID 重复".into());
-        }
-    }
-    Ok(())
+pub use crate::validate::validate;
+
+/// Parse stored or imported JSON, upgrading older snapshot versions first.
+pub fn parse(text: &str) -> Result<Snapshot> {
+    let raw: serde_json::Value = serde_json::from_str(text).map_err(|_| "快照不是有效的 JSON")?;
+    let snapshot: Snapshot = serde_json::from_value(crate::migrate::upgrade(raw)?).map_err(error)?;
+    validate(&snapshot)?;
+    Ok(snapshot)
 }
 pub fn save_asset(c: &mut Connection, mut a: Asset, revision: u64) -> Result<Snapshot> {
     // Entered by hand: the user vouches for it unless a source was already recorded.
@@ -399,37 +175,53 @@ pub fn save_asset(c: &mut Connection, mut a: Asset, revision: u64) -> Result<Sna
     Ok(s)
 }
 /// End exactly one active interval and start its successor in one revision.
-pub fn transfer(c: &mut Connection, id: &str, next: Asset, revision: u64) -> Result<Snapshot> {
+/// Hand an asset to someone else: end the open `uses` relation and start a new one the same day.
+pub fn transfer_use(
+    c: &mut Connection,
+    id: &str,
+    person_id: &str,
+    starts_on: &str,
+    usage_role: Option<String>,
+    revision: u64,
+) -> Result<Snapshot> {
     let tx = c
         .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
         .map_err(error)?;
     let mut s = read(&tx)?;
     check_revision(&s, revision)?;
-    if next.kind != "assignment" || s.assets.iter().any(|a| a.id == next.id) {
-        return Err("新使用记录无效".into());
-    }
     let old = s
-        .assets
+        .links
         .iter_mut()
-        .find(|a| a.id == id && a.kind == "assignment")
+        .find(|l| l.id == id && l.kind == "uses")
         .ok_or("使用记录不存在")?;
-    if old.status != "active"
-        || old.fields.get("ends_on").is_some_and(|v| !v.is_empty())
-        || old.fields.get("asset_id") != next.fields.get("asset_id")
-    {
-        return Err("只能交接同一资产的持续使用记录".into());
+    if old.attrs.get("ends_on").is_some_and(|v| !v.is_empty()) {
+        return Err("这条使用记录已经结束，不能再交接".into());
     }
     let before = old.clone();
-    old.fields.insert(
-        "ends_on".into(),
-        next.fields.get("starts_on").ok_or("缺少交接日期")?.clone(),
-    );
-    s.assets.push(next.clone());
+    old.attrs.insert("ends_on".into(), starts_on.into());
+    let mut attrs = BTreeMap::from([
+        (
+            "usage_role".to_string(),
+            usage_role.unwrap_or_else(|| before.attrs.get("usage_role").cloned().unwrap_or_else(|| "primary".into())),
+        ),
+        ("starts_on".to_string(), starts_on.to_string()),
+    ]);
+    if let Some(location) = before.attrs.get("location") {
+        attrs.insert("location".into(), location.clone());
+    }
+    let next = Link {
+        id: uid(),
+        kind: "uses".into(),
+        from: person_id.into(),
+        to: before.to.clone(),
+        attrs,
+    };
+    s.links.push(next.clone());
     validate(&s)?;
     event(
         &mut s,
         "transfer",
-        serde_json::json!({"before":before,"next":next}).to_string(),
+        serde_json::json!({"before": before, "next": next}).to_string(),
     );
     persist(&tx, &mut s)?;
     tx.commit().map_err(error)?;
@@ -441,12 +233,19 @@ pub fn save_link(c: &mut Connection, l: Link, revision: u64) -> Result<Snapshot>
         .map_err(error)?;
     let mut s = read(&tx)?;
     check_revision(&s, revision)?;
-    if s.links.iter().any(|x| x.id == l.id) {
-        return Err("关系 ID 已存在".into());
+    // Saving an existing relation updates its attributes (e.g. an end date).
+    let before = s.links.iter().find(|x| x.id == l.id).cloned();
+    if before.as_ref().is_some_and(|b| b.kind != l.kind || b.from != l.from || b.to != l.to) {
+        return Err("关系的类型和两端不能修改，请删除后重建".into());
     }
+    s.links.retain(|x| x.id != l.id);
     s.links.push(l.clone());
     validate(&s)?;
-    event(&mut s, "link", serde_json::to_string(&l).map_err(error)?);
+    event(
+        &mut s,
+        if before.is_some() { "relink" } else { "link" },
+        serde_json::json!({"before": before, "after": l}).to_string(),
+    );
     persist(&tx, &mut s)?;
     tx.commit().map_err(error)?;
     Ok(s)
@@ -476,23 +275,10 @@ pub fn plan(s: &Snapshot, id: &str) -> Result<DeletePlan> {
         .find(|a| a.id == id)
         .cloned()
         .ok_or("资产不存在")?;
-    let mut blockers = vec![];
-    for a in &s.assets {
-        for (k, v) in &a.fields {
-            if is_ref(&a.kind, k) && v == id {
-                blockers.push(format!("{} · {}", a.name, k));
-            }
-        }
-    }
-    for l in &s.links {
-        if l.from == id || l.to == id {
-            blockers.push(format!("关系：{}", l.relation));
-        }
-    }
     Ok(DeletePlan {
         revision: s.revision,
         asset,
-        blockers,
+        blockers: crate::validate::references(s, id),
     })
 }
 pub fn private_write(path: &Path, bytes: &[u8]) -> Result<()> {
@@ -555,7 +341,6 @@ pub fn import_snapshot(
         return Err("恢复仅允许空台账；请先切换到新的数据文件".into());
     }
     incoming.revision = current.revision;
-    incoming.version = 3;
     event(
         &mut incoming,
         "restore",
@@ -578,7 +363,6 @@ pub fn replace_snapshot(
     let current = read(&tx)?;
     check_revision(&current, revision)?;
     backup(&current, dir)?;
-    incoming.version = 3;
     incoming.revision = current.revision;
     event(
         &mut incoming,
@@ -739,9 +523,10 @@ mod tests {
                 &mut c,
                 Link {
                     id: uid(),
+                    kind: "uses".into(),
                     from: "x".into(),
                     to: "y".into(),
-                    relation: "uses".into()
+                    attrs: BTreeMap::new(),
                 },
                 0
             )
@@ -758,17 +543,25 @@ mod tests {
         s.assets = vec![a, b];
         assert!(validate(&s).is_err());
     }
-    fn assignment(id: &str, person: &str, start: &str) -> Asset {
-        let mut a = asset(id, "assignment");
-        for (k, v) in [
-            ("asset_id", "laptop"),
-            ("person_id", person),
-            ("starts_on", start),
-            ("usage_role", "primary"),
-        ] {
-            a.fields.insert(k.into(), v.into());
+    fn uses(id: &str, person: &str, start: &str) -> Link {
+        Link {
+            id: id.into(),
+            kind: "uses".into(),
+            from: person.into(),
+            to: "laptop".into(),
+            attrs: BTreeMap::from([
+                ("starts_on".to_string(), start.to_string()),
+                ("usage_role".to_string(), "primary".to_string()),
+            ]),
         }
-        a
+    }
+    fn family(c: &mut Connection) -> Snapshot {
+        apply_batch(
+            c,
+            vec![asset("me", "person"), asset("child", "person"), asset("laptop", "device")],
+            0,
+        )
+        .unwrap()
     }
     fn with(mut a: Asset, fields: &[(&str, &str)]) -> Asset {
         for (k, v) in fields {
@@ -778,7 +571,7 @@ mod tests {
     }
     fn snapshot(assets: Vec<Asset>) -> Snapshot {
         Snapshot {
-            version: 1,
+            version: 4,
             revision: 0,
             assets,
             links: vec![],
@@ -788,13 +581,12 @@ mod tests {
     #[test]
     fn schema_rules_cover_options_required_secrets_and_dates() {
         let me = asset("me", "person");
-        // v1 snapshots stay readable.
         assert!(validate(&snapshot(vec![me.clone()])).is_ok());
         let bad_option = with(asset("d", "device"), &[("device_kind", "toaster")]);
         assert!(validate(&snapshot(vec![bad_option])).unwrap_err().contains("选项"));
         let unknown = with(asset("d", "device"), &[("password", "x")]);
         assert!(validate(&snapshot(vec![unknown])).unwrap_err().contains("不支持的字段"));
-        let missing = asset("c", "copy");
+        let missing = asset("c", "course");
         assert!(validate(&snapshot(vec![missing])).unwrap_err().contains("请填写"));
         let plain_secret = with(asset("a", "account"), &[("secret_ref", "hunter2")]);
         assert!(validate(&snapshot(vec![plain_secret])).unwrap_err().contains("保险库"));
@@ -803,9 +595,11 @@ mod tests {
         let wrong_kind = with(asset("d", "device"), &[("owner_id", "d2")]);
         let d2 = asset("d2", "device");
         assert!(validate(&snapshot(vec![wrong_kind, d2])).unwrap_err().contains("引用无效"));
-        let mut zero = assignment("z", "me", "2026-01-01");
-        zero.fields.insert("ends_on".into(), "2026-01-01".into());
-        assert!(validate(&snapshot(vec![me.clone(), asset("laptop", "device"), zero])).unwrap_err().contains("晚于"));
+        let mut zero = uses("z", "me", "2026-01-01");
+        zero.attrs.insert("ends_on".into(), "2026-01-01".into());
+        let mut s = snapshot(vec![me.clone(), asset("laptop", "device")]);
+        s.links = vec![zero];
+        assert!(validate(&s).unwrap_err().contains("晚于"));
         // Legacy keys accepted on any kind, and 500-character Chinese names fit.
         let legacy = Asset {
             name: "名".repeat(500),
@@ -827,75 +621,70 @@ mod tests {
     #[test]
     fn transfer_is_atomic_preserves_history_and_rejects_stale_writes() {
         let mut c = db();
-        let s = apply_batch(
-            &mut c,
-            vec![
-                asset("me", "person"),
-                asset("child", "person"),
-                asset("laptop", "device"),
-                assignment("old", "me", "2025-01-01"),
-            ],
-            0,
-        )
-        .unwrap();
-        let next = assignment("new", "child", "2026-10-01");
-        let s = transfer(&mut c, "old", next.clone(), s.revision).unwrap();
-        assert_eq!(
-            s.assets.iter().find(|a| a.id == "old").unwrap().fields["ends_on"],
-            "2026-10-01"
-        );
-        assert_eq!(
-            s.assets.iter().find(|a| a.id == "new").unwrap().fields["person_id"],
-            "child"
-        );
+        let s = family(&mut c);
+        let s = save_link(&mut c, uses("old", "me", "2025-01-01"), s.revision).unwrap();
+        let s = transfer_use(&mut c, "old", "child", "2026-10-01", None, s.revision).unwrap();
+        let old = s.links.iter().find(|l| l.id == "old").unwrap();
+        assert_eq!(old.attrs["ends_on"], "2026-10-01");
+        let new = s.links.iter().find(|l| l.kind == "uses" && l.from == "child").unwrap();
+        assert_eq!((new.to.as_str(), new.attrs["usage_role"].as_str()), ("laptop", "primary"));
         assert_eq!(s.events.last().unwrap().action, "transfer");
-        assert!(transfer(&mut c, "old", next, 1).is_err());
-        assert_eq!(read(&c).unwrap().revision, s.revision);
-        assert!(
-            save_asset(
-                &mut c,
-                assignment("overlap", "me", "2026-11-01"),
-                s.revision
-            )
-            .is_err()
-        );
+        // Stale revision and an already-ended record are both refused.
+        assert!(transfer_use(&mut c, "old", "me", "2026-11-01", None, 1).is_err());
+        assert!(transfer_use(&mut c, "old", "me", "2026-11-01", None, s.revision).is_err());
+        // Someone else using it at the same time needs both marked shared.
+        assert!(save_link(&mut c, uses("overlap", "me", "2026-11-01"), s.revision).is_err());
+        // The same day as the start is not a valid handover.
+        let id = new.id.clone();
+        assert!(transfer_use(&mut c, &id, "me", "2026-10-01", None, s.revision).is_err());
     }
     #[test]
     fn shared_use_course_counts_and_storage_references() {
         let mut c = db();
-        let mut first = assignment("first", "me", "2025-01-01");
-        first.fields.insert("usage_role".into(), "shared".into());
-        let mut second = assignment("second", "child", "2026-01-01");
-        second.fields.insert("usage_role".into(), "shared".into());
-        let s = apply_batch(
-            &mut c,
-            vec![
-                asset("me", "person"),
-                asset("child", "person"),
-                asset("laptop", "device"),
-                first,
-                second,
-            ],
-            0,
-        )
-        .unwrap();
+        let s = family(&mut c);
+        let mut first = uses("first", "me", "2025-01-01");
+        first.attrs.insert("usage_role".into(), "shared".into());
+        let mut second = uses("second", "child", "2026-01-01");
+        second.attrs.insert("usage_role".into(), "shared".into());
+        let s = save_link(&mut c, first, s.revision).unwrap();
+        let s = save_link(&mut c, second.clone(), s.revision).unwrap();
+        // The same person twice is still an overlap.
+        second.id = "again".into();
+        second.from = "me".into();
+        assert!(save_link(&mut c, second, s.revision).is_err());
         let mut course = asset("math", "course");
-        for (k, v) in [
-            ("person_id", "child"),
-            ("lessons_total", "20"),
-            ("lessons_used", "21"),
-        ] {
+        for (k, v) in [("person_id", "child"), ("lessons_total", "20"), ("lessons_used", "21")] {
             course.fields.insert(k.into(), v.into());
         }
         assert!(save_asset(&mut c, course.clone(), s.revision).is_err());
         course.fields.insert("lessons_used".into(), "2".into());
         let s = save_asset(&mut c, course, s.revision).unwrap();
-        let mut disk = asset("disk", "storage");
-        disk.fields.insert("device_id".into(), "laptop".into());
+        let mut disk = asset("disk", "device");
+        disk.fields.insert("parent_id".into(), "laptop".into());
         let mut os = asset("linux", "environment");
         os.fields.insert("storage_id".into(), "disk".into());
         let s = apply_batch(&mut c, vec![disk, os], s.revision).unwrap();
-        assert!(!plan(&s, "disk").unwrap().blockers.is_empty());
+        assert!(plan(&s, "disk").unwrap().blockers.iter().any(|b| b.contains("安装在哪块硬盘")));
+        assert!(plan(&s, "laptop").unwrap().blockers.iter().any(|b| b.contains("使用")));
+    }
+    #[test]
+    fn relation_ends_must_fit_and_attrs_are_checked() {
+        let mut c = db();
+        let s = family(&mut c);
+        let mut wrong = uses("w", "laptop", "2026-01-01");
+        wrong.to = "me".into();
+        assert!(save_link(&mut c, wrong, s.revision).unwrap_err().contains("两端类型"));
+        let mut odd = uses("o", "me", "2026-01-01");
+        odd.attrs.insert("color".into(), "red".into());
+        assert!(save_link(&mut c, odd, s.revision).unwrap_err().contains("不支持的属性"));
+        let related = Link {
+            id: "r".into(),
+            kind: "related".into(),
+            from: "me".into(),
+            to: "laptop".into(),
+            attrs: BTreeMap::new(),
+        };
+        assert!(save_link(&mut c, related, s.revision).unwrap_err().contains("写明"));
     }
     #[test]
     fn replacement_backs_up_and_failed_backup_never_replaces() {
