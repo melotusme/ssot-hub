@@ -394,9 +394,11 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             ai::ai_apply,
         ])
 }
+#[cfg(any(debug_assertions, test))]
 fn bindings_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src/bindings.ts")
 }
+#[cfg(any(debug_assertions, test))]
 fn export_bindings(builder: &tauri_specta::Builder<tauri::Wry>, path: &std::path::Path) -> Result<()> {
     builder
         .export(
