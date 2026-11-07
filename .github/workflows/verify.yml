@@ -26,8 +26,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS 只在本机构建（Actions 额度），见 AGENTS.md
+        # 仓库公开，Actions（含 macOS）免费
         include:
+          - os: macos-latest
+            bundle: app
+            name: macOS-arm64
           - os: windows-latest
             bundle: nsis
             name: Windows-x64
@@ -57,6 +60,7 @@ jobs:
           $version = (Get-Content package.json | ConvertFrom-Json).version
           Copy-Item "src-tauri/target/release/bundle/nsis/SSOT Hub_${version}_x64-setup.exe" 'SSOT.Hub.windows.x64.exe'
       - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
         with:
           name: SSOT-Hub-${{ matrix.name }}
           path: SSOT.Hub.windows.x64.exe

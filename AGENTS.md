@@ -10,4 +10,5 @@
 - **不要定时任务**：不要添加 `schedule` / cron 触发的工作流，发布只能手动触发。
 - 新增或修改工作流前，先确认不会加回 macOS runner 或定时触发；拿不准就先问用户。
 - 公开仓库的 Actions 免费，不受以上额度限制。
-- 本项目现状：`verify.yml` 只在 push 时跑 Linux 前端检查和 Windows 打包；macOS 包用本机 `bun run tauri build --bundles app` 构建。
+- 本项目现状（2026-11-07 起）：仓库 `melotusme/ssot-hub` 公开，Actions（含 macOS）免费。`verify.yml` 在 push 时跑前端检查和 macOS / Windows 打包；预览版用手动触发的 `release.yml` 在 CI 构建并发布：`gh workflow run "Publish preview release" -R melotusme/ssot-hub -f tag=v<版本>-preview.<n>`。
+- 仓库是公开的：不要把真实机器名、本机路径、IP、账号或台账数据写进代码、文档、测试或提交说明。
