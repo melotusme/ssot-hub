@@ -1,6 +1,6 @@
-# 0.2.2 预览版安装
+# 0.2.2 预览版安装（preview.2 起由 CI 构建）
 
-公开仓库：<https://github.com/melotusme/ssot-hub>，不需要 GitHub 登录。发行记录：<https://github.com/melotusme/ssot-hub/releases/tag/v0.2.2-preview.1>。
+公开仓库：<https://github.com/melotusme/ssot-hub>，不需要 GitHub 登录。发行记录：<https://github.com/melotusme/ssot-hub/releases/tag/v0.2.2-preview.2>。
 
 0.2.2 把快照写成版本 3，并增加资源副本、网络节点和盘点依据；旧的版本 1/2 快照仍可打开。升级前在旧版「数据与备份」保存备份。
 
@@ -11,7 +11,7 @@
 `SSOT.Hub.macos.arm64.tar.gz` 包含 `.app`，不支持 Intel 原生运行。仅 ad-hoc 签名，未 Apple 公证；首次打开可能被 Gatekeeper 拦截。核对校验值和来源后，按 macOS「隐私与安全性」的单应用提示处理，不关闭全局安全保护。
 
 ```sh
-base=https://github.com/melotusme/ssot-hub/releases/download/v0.2.2-preview.1
+base=https://github.com/melotusme/ssot-hub/releases/download/v0.2.2-preview.2
 mkdir ssot-hub-0.2.2-mac && cd ssot-hub-0.2.2-mac
 curl -fsSLO "$base/SSOT.Hub.macos.arm64.tar.gz" && curl -fsSLO "$base/SHA256SUMS"
 grep '  SSOT.Hub.macos.arm64.tar.gz$' SHA256SUMS | shasum -a 256 -c -
@@ -28,7 +28,7 @@ codesign --verify --deep --strict 'SSOT Hub.app'
 ```powershell
 $ssotDir = Join-Path $env:TEMP ('ssot-hub-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $ssotDir | Out-Null
-$base = 'https://github.com/melotusme/ssot-hub/releases/download/v0.2.2-preview.1'
+$base = 'https://github.com/melotusme/ssot-hub/releases/download/v0.2.2-preview.2'
 Invoke-WebRequest "$base/SSOT.Hub.windows.x64.exe" -OutFile (Join-Path $ssotDir 'SSOT.Hub.windows.x64.exe')
 Invoke-WebRequest "$base/SHA256SUMS" -OutFile (Join-Path $ssotDir 'SHA256SUMS')
 $lines = @(Get-Content (Join-Path $ssotDir 'SHA256SUMS') | Where-Object { $_ -match '^([0-9a-f]{64})  SSOT\.Hub\.windows\.x64\.exe$' })
